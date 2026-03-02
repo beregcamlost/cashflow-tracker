@@ -1,0 +1,22 @@
+# Secrets (local only)
+.secrets
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Serena
+.serena/
+
+# Bank statement raw files (sensitive financial data)
+personal/cashflow/bank-drops/
+
+# Excel working files
+~$*.xlsx
+~$*.xls
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
