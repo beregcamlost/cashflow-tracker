@@ -193,9 +193,3 @@ The committed code only contains placeholder values like `YOUR_DROP_FOLDER_ID`.
 | <img src="https://www.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png" width="16" /> | **Drive API v3** | `.xls`/`.xlsx` → Sheets conversion |
 | 🔐 | **PropertiesService** | Fingerprints, history, banco saldo |
 | 🎨 | **Midnight Finance** | Custom dark theme palette |
-
----
-
-<p align="center">
-  <sub>Built with ☕ and <a href="https://claude.ai/code">Claude Code</a></sub>
-</p>
