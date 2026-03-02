@@ -25,28 +25,11 @@
 
 ## 📸 Dashboard Preview
 
-```
-╔══════════════════════════════════════════════════════════════╗
-║                    CASHFLOW DASHBOARD                       ║
-╠══════════════════════════════════════════════════════════════╣
-║ STATUS          │ REFRESHED        FILE INFO                ║
-╠══════════════════════════════════════════════════════════════╣
-║              FINANCIAL OVERVIEW                             ║
-║ Income (Salario)  3.000.000   Fixed Costs       802.391    ║
-║ CC Nacional         420.514   CC Intl (CLP)     114.219    ║
-║ Total Expenses    1.337.124   Available Margin   500.000   ║
-║ FSI                   55.4%   Stability           GREEN    ║
-╠══════════════════════════════════════════════════════════════╣
-║           SAVINGS & INDICATORS                              ║
-║ Banco Balance       500.000   Banco Debits       120.000   ║
-╠══════════════════════════════════════════════════════════════╣
-║  CC NACIONAL (CLP)      │  CC INTERNACIONAL (USD)          ║
-╠══════════════════════════════════════════════════════════════╣
-║              INSTALLMENTS                                   ║
-╠══════════════════════════════════════════════════════════════╣
-║              IMPORT HISTORY                                 ║
-╚══════════════════════════════════════════════════════════════╝
-```
+<p align="center">
+  <img src="assets/dashboard-preview.png" alt="Cashflow Dashboard" width="900" />
+</p>
+
+<sub>*Screenshot uses dummy data — no real financial information is shown.*</sub>
 
 ---
 

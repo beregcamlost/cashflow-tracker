@@ -1135,6 +1135,10 @@ function doPreview_(ss) {
     bancoRows: prevBancoRows,
     status: "OK",
   });
+
+  // Navigate to preview tab
+  const prevSheet = ss.getSheetByName(PREVIEW_TAB);
+  if (prevSheet) ss.setActiveSheet(prevSheet);
 }
 
 /**
@@ -1512,6 +1516,9 @@ function doConfirm_(ss) {
     updateInstallmentsSummary_(dash, cuotasStats);
 
     renderHistory_(dash);
+
+    // Navigate to dashboard
+    ss.setActiveSheet(dash);
   }
 }
 

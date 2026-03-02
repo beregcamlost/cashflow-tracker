@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #e8ecf0; padding: 8px; }
+  .sheet {
+    background: #F8FAFC;
+    width: 1100px;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .row { display: flex; border-bottom: 1px solid #E2E8F0; }
+  .cell { padding: 6px 10px; font-size: 12px; color: #000; white-space: nowrap; overflow: hidden; }
+  .cell.label { color: #64748B; font-weight: bold; }
+
+  /* Column widths matching the sheet */
+  .c1 { width: 140px; }
+  .c2 { width: 145px; text-align: right; }
+  .c3 { width: 120px; text-align: right; }
+  .c4 { width: 75px; }
+  .c5 { width: 160px; }
+  .c6 { width: 100px; text-align: right; }
+  .c7 { width: 120px; text-align: right; }
+  .c8 { width: 100px; text-align: right; }
+  .wide { flex: 1; }
+
+  /* Section headers */
+  .header-full { background: #1B2A4A; color: white; font-weight: bold; font-size: 18px; text-align: center; padding: 12px; }
+  .accent-bar { background: #2EC4B6; height: 4px; }
+  .section-header { background: #1B2A4A; color: white; font-weight: bold; font-size: 13px; text-align: center; padding: 6px 10px; }
+  .section-header-alt { background: #4A6FA5; color: white; font-weight: bold; font-size: 13px; text-align: center; padding: 6px 10px; }
+  .section-header-teal { background: #2EC4B6; color: white; font-weight: bold; font-size: 13px; text-align: center; padding: 6px 10px; }
+  .spacer { height: 8px; }
+
+  /* Status colors */
+  .status-ok { color: #059669; background: #ECFDF5; font-weight: bold; font-size: 14px; }
+  .positive { color: #065F46; background: #ECFDF5; font-weight: bold; }
+  .negative { color: #991B1B; background: #FEF2F2; }
+  .muted { color: #64748B; }
+  .bold { font-weight: bold; }
+  .green-text { color: #059669; font-weight: bold; }
+  .info-text { color: #2563EB; }
+
+  /* History */
+  .hist-header { background: #F0F4F8; font-weight: bold; font-size: 11px; color: #1B2A4A; text-align: center; }
+  .hist-row { font-size: 11px; text-align: center; }
+  .hist-alt { background: #F0F4F8; }
+
+  /* Half sections */
+  .half { width: 50%; }
+  .half-row { display: flex; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <!-- Title -->
+  <div class="header-full">CASHFLOW DASHBOARD</div>
+  <div class="accent-bar"></div>
+  <div class="spacer"></div>
+
+  <!-- STATUS + FILE INFO headers -->
+  <div class="row" style="border:none;">
+    <div class="half"><div class="section-header">STATUS</div></div>
+    <div class="half"><div class="section-header">FILE INFO</div></div>
+  </div>
+
+  <!-- Status rows -->
+  <div class="row">
+    <div class="cell c1 label">Status</div>
+    <div class="cell status-ok" style="width:320px;">SYNC OK — IMPORTED</div>
+    <div class="cell label" style="width:120px;">NAC file</div>
+    <div class="cell" style="flex:1;">MovimientosNoFacturadosNaci...</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Last updated</div>
+    <div class="cell" style="width:320px;">01/03/2026 22:40:05</div>
+    <div class="cell label" style="width:120px;">INTL file</div>
+    <div class="cell" style="flex:1;">MovimientosNoFacturadosInter...</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Hint</div>
+    <div class="cell muted" style="width:320px;">NAC: IMPORTED · INTL: IMPORTED · BANCO: IMPORTED</div>
+    <div class="cell label" style="width:120px;">Banco file</div>
+    <div class="cell muted" style="flex:1;">Ultimos_Movimientos_Cuenta_C...</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- FINANCIAL OVERVIEW -->
+  <div class="section-header">FINANCIAL OVERVIEW</div>
+  <div class="row">
+    <div class="cell c1 label">Income (Salario)</div>
+    <div class="cell" style="width:320px; text-align:right;">2.500.000</div>
+    <div class="cell label" style="width:160px;">Fixed Costs</div>
+    <div class="cell" style="flex:1; text-align:right;">650.000</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">CC Nacional</div>
+    <div class="cell" style="width:320px; text-align:right;">380.250</div>
+    <div class="cell label" style="width:160px;">CC Intl (CLP)</div>
+    <div class="cell" style="flex:1; text-align:right;">95.400</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Total Expenses</div>
+    <div class="cell" style="width:320px; text-align:right;">1.125.650</div>
+    <div class="cell label" style="width:160px;">Available Margin</div>
+    <div class="cell positive" style="flex:1; text-align:right;">485.230</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">FSI (margin/income)</div>
+    <div class="cell positive" style="width:320px; text-align:right;">55,0%</div>
+    <div class="cell label" style="width:160px;">Stability</div>
+    <div class="cell positive" style="flex:1; text-align:right;">GREEN</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- SAVINGS & INDICATORS -->
+  <div class="section-header">SAVINGS &amp; INDICATORS</div>
+  <div class="row">
+    <div class="cell c1 label">Recommended savi...</div>
+    <div class="cell" style="width:320px; text-align:right;">500.000</div>
+    <div class="cell label" style="width:160px;">Buffer after savings</div>
+    <div class="cell" style="flex:1; text-align:right;">874.350</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Burn threshold (CLP)</div>
+    <div class="cell" style="width:320px; text-align:right;">750.000</div>
+    <div class="cell label" style="width:160px;">Cross day</div>
+    <div class="cell muted" style="flex:1; text-align:right;">Day 15</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Banco Balance</div>
+    <div class="cell" style="width:320px; text-align:right;">485.230</div>
+    <div class="cell label" style="width:160px;">Banco Debits</div>
+    <div class="cell negative" style="flex:1; text-align:right;">8.450.000</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- CC NACIONAL + CC INTERNACIONAL -->
+  <div class="row" style="border:none;">
+    <div class="half"><div class="section-header">CC NACIONAL (CLP)</div></div>
+    <div class="half"><div class="section-header-alt">CC INTERNACIONAL (USD)</div></div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Movements</div>
+    <div class="cell" style="width:320px; text-align:right;">18</div>
+    <div class="cell label" style="width:160px;">Movements</div>
+    <div class="cell" style="flex:1; text-align:right;">5</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Live total</div>
+    <div class="cell" style="width:320px; text-align:right;">380.250</div>
+    <div class="cell label" style="width:160px;">Live total</div>
+    <div class="cell" style="flex:1; text-align:right;">$98,50</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Preview total</div>
+    <div class="cell muted" style="width:320px;">—</div>
+    <div class="cell label" style="width:160px;">Preview total</div>
+    <div class="cell muted" style="flex:1;">—</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Delta</div>
+    <div class="cell muted" style="width:320px;">—</div>
+    <div class="cell label" style="width:160px;">Delta</div>
+    <div class="cell muted" style="flex:1;">—</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- INSTALLMENTS -->
+  <div class="section-header">INSTALLMENTS</div>
+  <div class="row">
+    <div class="cell c1 label">Active plans</div>
+    <div class="cell" style="width:320px; text-align:right;">7</div>
+    <div class="cell label" style="width:160px;">Monthly payment</div>
+    <div class="cell" style="flex:1; text-align:right;">165.300</div>
+  </div>
+  <div class="row">
+    <div class="cell c1 label">Total remaining</div>
+    <div class="cell" style="width:320px; text-align:right;">412.500</div>
+    <div class="cell label" style="width:160px;">Finishing soon</div>
+    <div class="cell" style="flex:1; text-align:right;">2</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- HOW TO IMPORT -->
+  <div class="section-header-teal">HOW TO IMPORT</div>
+  <div class="row">
+    <div class="cell muted" style="flex:1; font-size:12px;">1. Drop .xls in Drive → Bank_Drops &nbsp; 2. Management → Preview → review → Confirm</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- IMPORT HISTORY -->
+  <div class="section-header-alt">IMPORT HISTORY</div>
+  <div class="row" style="border:none;">
+    <div class="cell hist-header" style="width:120px;">Timestamp</div>
+    <div class="cell hist-header" style="width:120px;">Action</div>
+    <div class="cell hist-header" style="width:160px;">NAC Rows</div>
+    <div class="cell hist-header" style="width:160px;">INTL Rows</div>
+    <div class="cell hist-header" style="width:200px;">Banco Rows</div>
+    <div class="cell hist-header" style="flex:1;">Status</div>
+  </div>
+  <div class="row hist-row">
+    <div class="cell" style="width:120px;">01/03 22:40</div>
+    <div class="cell" style="width:120px;">CONFIRM</div>
+    <div class="cell" style="width:160px;">18</div>
+    <div class="cell" style="width:160px;">5</div>
+    <div class="cell" style="width:200px;">42</div>
+    <div class="cell" style="flex:1;">OK</div>
+  </div>
+  <div class="row hist-row hist-alt">
+    <div class="cell" style="width:120px;">01/03 22:39</div>
+    <div class="cell" style="width:120px;">PREVIEW</div>
+    <div class="cell" style="width:160px;">18</div>
+    <div class="cell" style="width:160px;">5</div>
+    <div class="cell" style="width:200px;">42</div>
+    <div class="cell" style="flex:1;">OK</div>
+  </div>
+  <div class="row hist-row">
+    <div class="cell" style="width:120px;">28/02 19:15</div>
+    <div class="cell" style="width:120px;">CONFIRM</div>
+    <div class="cell" style="width:160px;">15</div>
+    <div class="cell" style="width:160px;">3</div>
+    <div class="cell" style="width:200px;">38</div>
+    <div class="cell" style="flex:1;">OK</div>
+  </div>
+
+</div>
+</body>
+</html>

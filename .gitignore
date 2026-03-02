@@ -11,6 +11,9 @@ CLAUDE.md
 # Bank statement raw files (sensitive financial data)
 personal/cashflow/bank-drops/
 
+# Spreadsheet with real financial data
+personal/cashflow/cashflow.xlsx
+
 # Excel working files
 ~$*.xlsx
 ~$*.xls
