@@ -5,7 +5,8 @@
 <h1 align="center">Cashflow Tracker</h1>
 
 <p align="center">
-  <strong>Personal finance dashboard &amp; bank statement importer for Google Sheets</strong>
+  <strong>Personal finance dashboard &amp; bank statement importer for Google Sheets</strong><br/>
+  <sub>🇨🇱 Built for Chilean banks — BCI Credit Cards &amp; Banco Estado Checking</sub>
 </p>
 
 <p align="center">
@@ -54,11 +55,11 @@
 🔄 **Preview → Confirm Workflow**
 > Safe two-step import with file fingerprint verification. No accidental overwrites.
 
-🏦 **Banco Estado Integration**
+🏦 **Banco Estado Checking Account**
 > Import checking account movements. Available Margin is capped at your actual bank balance — no more inflated numbers.
 
-🇨🇱 **CC Nacional** + 🌎 **CC Internacional**
-> Import credit card statements in CLP and USD with automatic currency conversion.
+💳 **BCI Credit Cards** (🇨🇱 Nacional CLP + 🌎 Internacional USD)
+> Import BCI credit card statements with automatic currency conversion.
 
 🏷️ **Auto-Categorization**
 > Keyword-based rules match movements to categories (Transporte, Entretenimiento, Alimentacion, etc.)
@@ -82,9 +83,12 @@
 ```
 Google Drive (Bank_Drops folder)
   │
-  ├── MovimientosNoFacturadosNacionales_DD-MM-YYYY.xls
-  ├── MovimientosNoFacturadosInternacionales_DD-MM-YYYY.xls
-  └── Ultimos_Movimientos_Cuenta_Corriente_*.xlsx
+  ├── 💳 BCI Credit Cards
+  │   ├── MovimientosNoFacturadosNacionales_DD-MM-YYYY.xls      (CLP)
+  │   └── MovimientosNoFacturadosInternacionales_DD-MM-YYYY.xls  (USD)
+  │
+  └── 🏦 Banco Estado Checking
+      └── Ultimos_Movimientos_Cuenta_Corriente_*.xlsx             (CLP)
           │
           ▼
   ┌─────────────────────────┐
