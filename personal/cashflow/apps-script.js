@@ -1198,7 +1198,8 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
     row++;
     prev.getRange(row, 1).setValue("Banco rows").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(9).setFontFamily(FONT_FAMILY);
     prev.getRange(row, 2).setValue(info.bancoRows).setFontSize(9).setFontFamily(FONT_FAMILY);
-    prev.getRange(row, 3).setValue("Saldo: " + (info.bancoSaldo || 0))
+    prev.getRange(row, 3).setValue(info.bancoSaldo || 0)
+        .setNumberFormat("\"Saldo: \"" + FMT_CLP)
         .setFontSize(9).setFontFamily(FONT_FAMILY)
         .setFontColor(THEME.STATUS_INFO);
     row++;
