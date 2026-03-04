@@ -272,8 +272,8 @@ function doApplyTheme_(ss) {
   const dash = ss.getSheetByName(DASHBOARD_TAB);
   if (dash) {
     formatDashboardChrome_(dash);
-    renderHistory_(dash);
   }
+  renderHistory_(ss);
 
   const prev = ss.getSheetByName(PREVIEW_TAB);
   if (prev && prev.getLastRow() > 0) {
@@ -445,9 +445,9 @@ function formatDataTab_(sheet, currency, isPreview) {
  *   Rows 9-13:  Financial overview
  *   Rows 15-18: Savings & indicators
  *   Rows 20-24: CC summary (NAC/INTL cards)
- *   Rows 26-28: Installments summary
- *   Rows 30-31: How to import
- *   Rows 33+:   Import history
+ *   Rows 25-27: CC payment estimates
+ *   Rows 29-31: Installments summary
+ *   Rows 33-34: How to import
  */
 function formatDashboardChrome_(dash) {
   // Ensure minimum size
@@ -598,11 +598,25 @@ function formatDashboardChrome_(dash) {
         .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
   }
 
-  // Row 25: spacer
-  dash.setRowHeight(25, 10);
+  // Rows 25-27: CC PAYMENT ESTIMATES
+  dash.getRange(25, 1).setValue("Cuotas monthly")
+      .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
+  dash.getRange(25, 5).setValue("Cuotas monthly")
+      .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
+  dash.getRange(26, 1).setValue("Payment est.")
+      .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
+  dash.getRange(26, 5).setValue("Payment est.")
+      .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
+  dash.getRange("A27:H27").merge()
+      .setValue("")
+      .setFontSize(12).setFontWeight("bold").setFontFamily(FONT_FAMILY)
+      .setHorizontalAlignment("center");
 
-  // ── Rows 26-28: INSTALLMENTS SUMMARY ──────────────────────────────────
-  dash.getRange("A26:H26").merge()
+  // Row 28: spacer
+  dash.setRowHeight(28, 10);
+
+  // ── Rows 29-31: INSTALLMENTS SUMMARY ──────────────────────────────────
+  dash.getRange("A29:H29").merge()
       .setValue("INSTALLMENTS")
       .setBackground(THEME.PRIMARY)
       .setFontColor(THEME.WHITE)
@@ -611,20 +625,20 @@ function formatDashboardChrome_(dash) {
       .setFontFamily(FONT_FAMILY)
       .setHorizontalAlignment("center");
 
-  dash.getRange(27, 1).setValue("Active plans")
+  dash.getRange(30, 1).setValue("Active plans")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
-  dash.getRange(27, 5).setValue("Monthly payment")
+  dash.getRange(30, 5).setValue("Monthly payment")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
-  dash.getRange(28, 1).setValue("Total remaining")
+  dash.getRange(31, 1).setValue("Total remaining")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
-  dash.getRange(28, 5).setValue("Finishing soon")
+  dash.getRange(31, 5).setValue("Finishing soon")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
 
-  // Row 29: spacer
-  dash.setRowHeight(29, 10);
+  // Row 32: spacer
+  dash.setRowHeight(32, 10);
 
-  // ── Rows 30-31: HOW TO IMPORT ─────────────────────────────────────────
-  dash.getRange("A30:H30").merge()
+  // ── Rows 33-34: HOW TO IMPORT ─────────────────────────────────────────
+  dash.getRange("A33:H33").merge()
       .setValue("HOW TO IMPORT")
       .setBackground(THEME.ACCENT)
       .setFontColor(THEME.WHITE)
@@ -633,34 +647,11 @@ function formatDashboardChrome_(dash) {
       .setFontFamily(FONT_FAMILY)
       .setHorizontalAlignment("center");
 
-  dash.getRange("A31:H31").merge()
+  dash.getRange("A34:H34").merge()
       .setValue("1. Drop .xls in Drive → Bank_Drops   2. Finanzas → Preview → review → Confirm")
       .setFontColor(THEME.MUTED_TEXT).setFontSize(10).setFontFamily(FONT_FAMILY);
 
-  // Row 32: spacer
-  dash.setRowHeight(32, 10);
-
-  // ── Rows 33+: IMPORT HISTORY ──────────────────────────────────────────
-  dash.getRange("A33:H33").merge()
-      .setValue("IMPORT HISTORY")
-      .setBackground(THEME.SECONDARY)
-      .setFontColor(THEME.WHITE)
-      .setFontWeight("bold")
-      .setFontSize(11)
-      .setFontFamily(FONT_FAMILY)
-      .setHorizontalAlignment("center");
-
-  // Row 34: History table header
-  const histHeaders = ["Timestamp", "Action", "NAC Rows", "INTL Rows", "Banco Rows", "Status", "", ""];
-  dash.getRange(34, 1, 1, 8).setValues([histHeaders])
-      .setBackground(THEME.BG_ALT_ROW)
-      .setFontWeight("bold")
-      .setFontSize(9)
-      .setFontFamily(FONT_FAMILY)
-      .setFontColor(THEME.PRIMARY)
-      .setHorizontalAlignment("center");
-
-  // Column widths — matches manual layout for history filenames + merged value areas
+  // Column widths — matches manual layout for merged value areas
   dash.setColumnWidth(1, 130);  // Labels left
   dash.setColumnWidth(2, 145);  // Values left / Action
   dash.setColumnWidth(3, 265);  // Values left / NAC File
@@ -903,26 +894,62 @@ function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDeb
 }
 
 /**
- * Update the INSTALLMENTS SUMMARY section (rows 27-28).
+ * Update the INSTALLMENTS SUMMARY section (rows 30-31).
  * @param {Sheet} dash
  * @param {Object} cuotasStats  From rebuildCuotas_
  */
 function updateInstallmentsSummary_(dash, cuotasStats) {
-  dash.getRange(27, 2, 1, 3).merge()
+  dash.getRange(30, 2, 1, 3).merge()
       .setValue(cuotasStats.activePlans)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
-  dash.getRange(27, 6, 1, 3).merge()
+  dash.getRange(30, 6, 1, 3).merge()
       .setValue(cuotasStats.monthlyPayment).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
-  dash.getRange(28, 2, 1, 3).merge()
+  dash.getRange(31, 2, 1, 3).merge()
       .setValue(cuotasStats.totalRemaining).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
-  dash.getRange(28, 6, 1, 3).merge()
+  dash.getRange(31, 6, 1, 3).merge()
       .setValue(cuotasStats.finishingSoon)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
+}
+
+/**
+ * Update the CC PAYMENT ESTIMATES section (rows 25-27).
+ * @param {Sheet} dash
+ * @param {number} nacTotal      Sum of positive NAC amounts (CLP)
+ * @param {number} intlTotalUSD  Sum of positive INTL amounts (USD)
+ * @param {number} intlTotalCLP  INTL total converted to CLP
+ * @param {Object} cuotasStats   From rebuildCuotas_
+ */
+function updateCCPaymentEstimate_(dash, nacTotal, intlTotalUSD, intlTotalCLP, cuotasStats) {
+  // Row 25: Cuotas monthly per card
+  dash.getRange(25, 2, 1, 3).merge()
+      .setValue(cuotasStats.nacMonthly).setNumberFormat(FMT_CLP)
+      .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
+
+  dash.getRange(25, 6, 1, 3).merge()
+      .setValue(cuotasStats.intlMonthlyUSD).setNumberFormat(FMT_USD)
+      .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
+
+  // Row 26: Payment estimate (unbilled + cuotas) per card
+  dash.getRange(26, 2, 1, 3).merge()
+      .setValue(nacTotal + cuotasStats.nacMonthly).setNumberFormat(FMT_CLP)
+      .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
+
+  dash.getRange(26, 6, 1, 3).merge()
+      .setValue(intlTotalUSD + cuotasStats.intlMonthlyUSD).setNumberFormat(FMT_USD)
+      .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
+
+  // Row 27: Total CC Payment in CLP (full-width, already merged in chrome)
+  const totalCLP = (nacTotal + cuotasStats.nacMonthly) + (intlTotalCLP + cuotasStats.intlMonthly);
+  dash.getRange(27, 1, 1, 8)
+      .setValue(totalCLP).setNumberFormat('"Total CC Payment  " #,##0 " CLP"')
+      .setFontSize(12).setFontWeight("bold").setFontFamily(FONT_FAMILY)
+      .setFontColor(THEME.PRIMARY).setBackground(THEME.BG_ALT_ROW)
+      .setHorizontalAlignment("center");
 }
 
 /******************************************************************************
@@ -956,16 +983,45 @@ function logImport_(action, details) {
 }
 
 /**
- * Render history rows on the dashboard (rows 35+).
+ * Render import history on the CONFIG tab (below config values).
  */
-function renderHistory_(dash) {
-  const HIST_START = 35;
-  // Clear old history rows
-  const lastRow = Math.max(dash.getMaxRows(), 50);
-  if (lastRow >= HIST_START) {
-    dash.getRange(HIST_START, 1, lastRow - HIST_START + 1, 8)
-        .clearContent().setBackground(THEME.BG_DASHBOARD);
+function renderHistory_(ss) {
+  const sh = ss.getSheetByName(TAB_CONFIG);
+  if (!sh) return;
+
+  const HIST_GAP = 2;  // blank rows between config values and history
+  const configLastRow = 5;  // CONFIG has 5 key-value rows
+  const HIST_HEADER = configLastRow + HIST_GAP + 1;  // section header row
+  const HIST_COLS_ROW = HIST_HEADER + 1;              // column headers
+  const HIST_START = HIST_COLS_ROW + 1;               // first data row
+  const NUM_COLS = 6;
+
+  // Clear everything from history header onward
+  const lastRow = Math.max(sh.getMaxRows(), HIST_START + MAX_HISTORY);
+  if (lastRow >= HIST_HEADER) {
+    sh.getRange(HIST_HEADER, 1, lastRow - HIST_HEADER + 1, NUM_COLS)
+        .clearContent().clearFormat().setBackground(null);
   }
+
+  // Section header
+  sh.getRange(HIST_HEADER, 1, 1, NUM_COLS).merge()
+      .setValue("IMPORT HISTORY")
+      .setBackground(THEME.SECONDARY)
+      .setFontColor(THEME.WHITE)
+      .setFontWeight("bold")
+      .setFontSize(11)
+      .setFontFamily(FONT_FAMILY)
+      .setHorizontalAlignment("center");
+
+  // Column headers
+  const histHeaders = ["Timestamp", "Action", "NAC Rows", "INTL Rows", "Banco Rows", "Status"];
+  sh.getRange(HIST_COLS_ROW, 1, 1, NUM_COLS).setValues([histHeaders])
+      .setBackground(THEME.BG_ALT_ROW)
+      .setFontWeight("bold")
+      .setFontSize(9)
+      .setFontFamily(FONT_FAMILY)
+      .setFontColor(THEME.PRIMARY)
+      .setHorizontalAlignment("center");
 
   const props = PropertiesService.getScriptProperties();
   let history = [];
@@ -975,7 +1031,7 @@ function renderHistory_(dash) {
   } catch (_) { /* ignore */ }
 
   if (history.length === 0) {
-    dash.getRange(HIST_START, 1, 1, 8).merge()
+    sh.getRange(HIST_START, 1, 1, NUM_COLS).merge()
         .setValue("No imports yet")
         .setFontColor(THEME.MUTED_TEXT)
         .setFontSize(9)
@@ -991,22 +1047,21 @@ function renderHistory_(dash) {
     h.intlRows != null ? h.intlRows : "—",
     h.bancoRows != null ? h.bancoRows : "—",
     h.status || "—",
-    "",
-    ""
   ]);
 
-  dash.getRange(HIST_START, 1, rows.length, 8).setValues(rows)
+  sh.getRange(HIST_START, 1, rows.length, NUM_COLS).setValues(rows)
       .setFontSize(9)
       .setFontFamily(FONT_FAMILY)
       .setFontColor(THEME.BLACK)
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle");
 
-  // Zebra stripes on history
   for (let i = 0; i < rows.length; i++) {
-    const bg = i % 2 === 1 ? THEME.BG_ALT_ROW : THEME.BG_DASHBOARD;
-    dash.getRange(HIST_START + i, 1, 1, 8).setBackground(bg);
+    const bg = i % 2 === 1 ? THEME.BG_ALT_ROW : THEME.WHITE;
+    sh.getRange(HIST_START + i, 1, 1, NUM_COLS).setBackground(bg);
   }
+
+  sh.autoResizeColumns(1, NUM_COLS);
 }
 
 /** Format ISO timestamp for display. */
@@ -1123,7 +1178,7 @@ function doPreview_(ss) {
       { rowCount: prevNacRows, liveTotal: liveNacSum, previewTotal: prevNacSum, delta: prevNacSum - liveNacSum, status: "Preview" },
       { rowCount: prevIntlRows, liveTotal: liveIntlSum, previewTotal: prevIntlSum, delta: prevIntlSum - liveIntlSum, status: "Preview" }
     );
-    renderHistory_(dash);
+    renderHistory_(ss);
   }
 
   logImport_("PREVIEW", {
@@ -1515,8 +1570,9 @@ function doConfirm_(ss) {
     const intlTotalCLP = intlPositiveSum * config.usdClp;
     updateFinancialOverview_(dash, config, nacPositiveSum, intlTotalCLP, bancoDebits, bancoBalance);
     updateInstallmentsSummary_(dash, cuotasStats);
+    updateCCPaymentEstimate_(dash, nacPositiveSum, intlPositiveSum, intlTotalCLP, cuotasStats);
 
-    renderHistory_(dash);
+    renderHistory_(ss);
 
     // Navigate to dashboard
     ss.setActiveSheet(dash);
@@ -1546,7 +1602,7 @@ function doCancel_(ss) {
   if (dash) {
     formatDashboardChrome_(dash);
     updateDashboardStatus_(dash, "PREVIEW CLEARED", "Ready for a new preview");
-    renderHistory_(dash);
+    renderHistory_(ss);
   }
 }
 
@@ -1716,7 +1772,12 @@ function rebuildCuotas_(ss, config) {
   // Auto-fit column widths to content
   sh.autoResizeColumns(1, NUM_COLS);
 
-  return { activePlans, monthlyPayment, totalRemaining, finishingSoon };
+  // Per-source monthly breakdown
+  const nacMonthly = installments.filter(i => i.fuente === "NAC").reduce((s, i) => s + i.montoCLP, 0);
+  const intlMonthly = installments.filter(i => i.fuente === "INTL").reduce((s, i) => s + i.montoCLP, 0);
+  const intlMonthlyUSD = installments.filter(i => i.fuente === "INTL").reduce((s, i) => s + i.monto, 0);
+
+  return { activePlans, monthlyPayment, totalRemaining, finishingSoon, nacMonthly, intlMonthly, intlMonthlyUSD };
 }
 
 /******************************************************************************
@@ -1901,8 +1962,9 @@ function doRefreshCalculations_(ss) {
     const intlTotalCLP = intlPositiveSum * config.usdClp;
     updateFinancialOverview_(dash, config, nacPositiveSum, intlTotalCLP, bancoDebits, bancoBalance);
 
-    // Installments summary
+    // Installments summary + CC payment estimates
     updateInstallmentsSummary_(dash, cuotasStats);
+    updateCCPaymentEstimate_(dash, nacPositiveSum, intlPositiveSum, intlTotalCLP, cuotasStats);
 
     // CC summary (live data only, no preview)
     const nacRows = liveNac ? Math.max(0, liveNac.getLastRow() - 1) : 0;
@@ -1913,7 +1975,7 @@ function doRefreshCalculations_(ss) {
     );
 
     updateDashboardStatus_(dash, "REFRESHED", "Calculations updated from CONFIG");
-    renderHistory_(dash);
+    renderHistory_(ss);
   }
 }
 

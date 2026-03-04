@@ -50,6 +50,9 @@
 📅 **Installment Tracking**
 > Detects `CC 03-12` / `CF 01-06` patterns and calculates remaining payments.
 
+💰 **CC Payment Estimates**
+> Per-card payment breakdown (unbilled + installments) and combined total — see what your CC bill will actually be.
+
 📊 **Financial Dashboard**
 > One-glance overview: income vs expenses, FSI stability index, savings recommendations, burn rate.
 
@@ -88,7 +91,7 @@ Google Drive (Bank_Drops folder)
   │  Google Sheet (9 tabs)                      │
   │                                             │
   │  📊 DASHBOARD ── Financial overview         │
-  │  ⚙️  CONFIG ───── Salary, costs, USD/CLP    │
+  │  ⚙️  CONFIG ───── Salary, costs, import log  │
   │  🏷️  CATEGORIAS ─ Keyword → Category rules  │
   │  📋 RESUMEN ──── Spend by category          │
   │  🇨🇱 MOV_NAC ──── Nacional CC movements      │
