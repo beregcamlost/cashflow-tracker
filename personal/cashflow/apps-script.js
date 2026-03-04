@@ -1104,7 +1104,7 @@ function doPreview_(ss) {
     bancoRows: prevBancoRows,
     bancoSaldo: bancoResult ? bancoResult.saldoDisponible : 0,
   };
-  writePreview_(ss, nacData, intlData, bancoResult ? bancoResult.data : null, summaryInfo);
+  const prevSheet = writePreview_(ss, nacData, intlData, bancoResult ? bancoResult.data : null, summaryInfo);
 
   // Update dashboard
   if (dash) {
@@ -1137,7 +1137,6 @@ function doPreview_(ss) {
   });
 
   // Navigate to preview tab
-  const prevSheet = ss.getSheetByName(PREVIEW_TAB);
   if (prevSheet) ss.setActiveSheet(prevSheet);
 }
 
@@ -1356,6 +1355,8 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
 
   // Auto-fit column widths to content
   prev.autoResizeColumns(1, 3);
+
+  return prev;
 }
 
 /******************************************************************************
