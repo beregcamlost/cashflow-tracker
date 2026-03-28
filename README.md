@@ -14,7 +14,7 @@
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=flat-square&logo=google&logoColor=white" alt="Google Apps Script" /></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Google%20Sheets-34A853?style=flat-square&logo=googlesheets&logoColor=white" alt="Google Sheets" /></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Drive%20API%20v3-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="Drive API" /></a>
-  <a href="#-security"><img src="https://img.shields.io/badge/secrets-filtered-059669?style=flat-square&logo=gnuprivacyguard&logoColor=white" alt="Secrets filtered" /></a>
+  <a href="#-setup"><img src="https://img.shields.io/badge/clasp-managed-F4B400?style=flat-square&logo=google&logoColor=white" alt="clasp managed" /></a>
 </p>
 
 <p align="center">
@@ -129,9 +129,14 @@ Create a new Google Sheet — the script will auto-create all 9 tabs on first ru
 
 In Apps Script editor: **Services** → **+** → **Drive API v3**
 
-### 3. Paste the Script
+### 3. Clone with clasp
 
-Copy `personal/cashflow/apps-script.js` into the Apps Script editor (`Extensions → Apps Script`).
+```bash
+npm install -g @google/clasp
+clasp clone <scriptId>
+```
+
+Or copy `Code.js` into the Apps Script editor (`Extensions → Apps Script`).
 
 ### 4. Configure
 
@@ -147,7 +152,7 @@ After first run, edit the `⚙️ CONFIG` tab with your values:
 
 ### 5. Set Drop Folder
 
-Update `DROP_FOLDER_ID` in the script with your Google Drive folder ID.
+On first run, the script will prompt for your Google Drive folder URL or ID and store it as a Script Property.
 
 ### 6. Import
 
@@ -159,14 +164,9 @@ Update `DROP_FOLDER_ID` in the script with your Google Drive folder ID.
 
 ## 🛡️ Security
 
-Sensitive values (Drive folder IDs) are handled via **git clean/smudge filters**:
+Sensitive values (Drive folder IDs) are stored as **Script Properties** via `PropertiesService` — never hardcoded in source.
 
-- 📁 `.secrets` — local-only file with real values (gitignored)
-- 🔧 `.gitfilters/clean.sh` — strips secrets on `git add`
-- 🔧 `.gitfilters/smudge.sh` — restores secrets on `git checkout`
-- 📝 `.gitattributes` — applies filter to `apps-script.js`
-
-The committed code only contains placeholder values like `YOUR_DROP_FOLDER_ID`.
+On first run, the script prompts for the folder URL/ID and saves it server-side.
 
 ---
 

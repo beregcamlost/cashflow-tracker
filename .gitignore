@@ -1,6 +1,3 @@
-# Secrets (local only)
-.secrets
-
 # Claude Code
 .claude/
 CLAUDE.md
