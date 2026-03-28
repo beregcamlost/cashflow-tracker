@@ -18,6 +18,8 @@
  ******************************************************************************/
 
 const PROP_DROP_FOLDER = "DROP_FOLDER_ID";
+const PROP_GEMINI_KEY = "GEMINI_API_KEY";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 /**
  * Returns the configured Drop Folder ID from Script Properties.
@@ -45,6 +47,38 @@ function getDropFolderId_() {
 
   props.setProperty(PROP_DROP_FOLDER, id);
   return id;
+}
+
+function getGeminiApiKey_() {
+  const props = PropertiesService.getScriptProperties();
+  let key = props.getProperty(PROP_GEMINI_KEY);
+  if (key) return key;
+
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.prompt(
+    "Gemini API Key Setup",
+    "Paste your Gemini API key.\n\nGet one at: https://aistudio.google.com/apikey",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (resp.getSelectedButton() !== ui.Button.OK) {
+    throw new Error("Gemini API key is required for AI-powered parsing.");
+  }
+
+  key = resp.getResponseText().trim();
+  if (!key) throw new Error("API key cannot be empty.");
+
+  props.setProperty(PROP_GEMINI_KEY, key);
+  return key;
+}
+
+function getGeminiApiKeyIfSet_() {
+  return PropertiesService.getScriptProperties().getProperty(PROP_GEMINI_KEY) || null;
+}
+
+function ensureChileanLocale_(ss) {
+  if (ss.getSpreadsheetLocale() !== "es_CL") {
+    ss.setSpreadsheetLocale("es_CL");
+  }
 }
 
 const NAC_REGEX   = /^MovimientosNoFacturadosNacionales_.*/i;
@@ -121,14 +155,18 @@ const THEME = {
  ******************************************************************************/
 
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu("💰 Management")
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu("💰 Management")
     .addItem("Preview import",       "previewLatestBankXls")
     .addItem("Confirm import",       "confirmImportFromPreview")
     .addItem("Cancel preview",       "cancelPreview")
     .addSeparator()
     .addItem("Refresh calculations", "refreshCalculations")
     .addItem("Apply theme",          "applyTheme")
+    .addSeparator()
+    .addSubMenu(ui.createMenu("⚙️ Settings")
+      .addItem("Set Drop Folder",    "setDropFolder")
+      .addItem("Set Gemini API Key", "setGeminiApiKey"))
     .addToUi();
 }
 
@@ -154,6 +192,22 @@ function refreshCalculations() {
 
 function applyTheme() {
   safeRun_("Apply Theme", doApplyTheme_);
+}
+
+function setGeminiApiKey() {
+  safeRun_("Set Gemini API Key", function(ss) {
+    PropertiesService.getScriptProperties().deleteProperty(PROP_GEMINI_KEY);
+    getGeminiApiKey_();
+    toast_(ss, "Gemini API key saved!", 3);
+  });
+}
+
+function setDropFolder() {
+  safeRun_("Set Drop Folder", function(ss) {
+    PropertiesService.getScriptProperties().deleteProperty(PROP_DROP_FOLDER);
+    getDropFolderId_();
+    toast_(ss, "Drop folder ID saved!", 3);
+  });
 }
 
 /******************************************************************************
@@ -204,6 +258,7 @@ function readConfig_(ss) {
   const sh = ss.getSheetByName(TAB_CONFIG);
   if (!sh || sh.getLastRow() < 1) return defaults;
 
+  SpreadsheetApp.flush();
   const data = sh.getRange(1, 1, sh.getLastRow(), 2).getValues();
   const cfg = Object.assign({}, defaults);
   const map = {
@@ -226,6 +281,21 @@ function readConfig_(ss) {
       if (isFinite(num)) cfg[mapped] = num;
     }
   }
+
+  // Retry for IMPORTRANGE cells that may not have resolved yet
+  if (cfg.housing === 0) {
+    Utilities.sleep(2000);
+    const retryData = sh.getRange(1, 1, sh.getLastRow(), 2).getValues();
+    for (const [label, val] of retryData) {
+      const key = String(label || "").toLowerCase().replace(/[\s/]/g, "_").trim();
+      if (key === "housing" || key === "vivienda") {
+        const num = typeof val === "number" ? val : parseFloat(String(val).replace(/[^\d.-]/g, ""));
+        if (isFinite(num) && num !== 0) cfg.housing = num;
+        break;
+      }
+    }
+  }
+
   return cfg;
 }
 
@@ -276,6 +346,7 @@ function categorizeMovement_(desc, tipo, categories) {
  */
 function doApplyTheme_(ss) {
   ensureAllTabs_(ss);
+  ensureChileanLocale_(ss);
   toast_(ss, "Cleaning up legacy tabs…");
   removeLegacyTabs_(ss);
 
@@ -593,7 +664,7 @@ function formatDashboardChrome_(dash) {
   // Row 18: Banco summary
   dash.getRange(18, 1).setValue("Banco Balance")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
-  dash.getRange(18, 5).setValue("Banco Debits")
+  dash.getRange(18, 5).setValue("Debitos Banco")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
 
   // Row 19: spacer
@@ -962,17 +1033,17 @@ function updateCCPaymentEstimate_(dash, nacTotal, intlTotalUSD, intlTotalCLP, cu
       .setValue(cuotasStats.intlMonthlyUSD).setNumberFormat(FMT_USD)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
-  // Row 26: Payment estimate (unbilled + cuotas) per card
+  // Row 26: Payment estimate per card (unbilled total already includes cuotas)
   dash.getRange(26, 2, 1, 3).merge()
-      .setValue(nacTotal + cuotasStats.nacMonthly).setNumberFormat(FMT_CLP)
+      .setValue(nacTotal).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   dash.getRange(26, 6, 1, 3).merge()
-      .setValue(intlTotalUSD + cuotasStats.intlMonthlyUSD).setNumberFormat(FMT_USD)
+      .setValue(intlTotalUSD).setNumberFormat(FMT_USD)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   // Row 27: Total CC Payment in CLP (full-width, already merged in chrome)
-  const totalCLP = (nacTotal + cuotasStats.nacMonthly) + (intlTotalCLP + cuotasStats.intlMonthly);
+  const totalCLP = nacTotal + intlTotalCLP;
   dash.getRange(27, 1, 1, 8)
       .setValue(totalCLP).setNumberFormat('"Total CC Payment  " #,##0 " CLP"')
       .setFontSize(12).setFontWeight("bold").setFontFamily(FONT_FAMILY)
@@ -1116,16 +1187,51 @@ function doPreview_(ss) {
   const dash  = ss.getSheetByName(DASHBOARD_TAB);
   const folder = DriveApp.getFolderById(getDropFolderId_());
 
-  toast_(ss, "Scanning Drive folder…");
-  const latest = findLatestFiles_(folder);
-  const latestNac   = latest.nac;
-  const latestIntl  = latest.intl;
-  const latestBanco = latest.banco;
+  const apiKey = getGeminiApiKeyIfSet_();
+  let latestNac, latestIntl, latestBanco;
+  let nacData = null, intlData = null, bancoResult = null;
+
+  if (apiKey) {
+    // Gemini AI path — supports any bank file format
+    toast_(ss, "Scanning files with Gemini AI…");
+    try {
+      const gemini = findAndExtractAllFilesGemini_(folder, apiKey);
+      latestNac   = gemini.nac;
+      latestIntl  = gemini.intl;
+      latestBanco = gemini.banco;
+      nacData  = latestNac  ? latestNac.extractedData  : null;
+      intlData = latestIntl ? latestIntl.extractedData : null;
+      bancoResult = latestBanco
+        ? { data: latestBanco.extractedData, saldoDisponible: latestBanco.saldoDisponible }
+        : null;
+    } catch (geminiErr) {
+      Logger.log("Gemini failed, falling back to legacy: " + geminiErr.message);
+      toast_(ss, "Gemini failed, using legacy parsers…");
+      const legacy = findLatestFiles_(folder);
+      latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+      nacData  = latestNac  ? extractMovementsFromXls_(latestNac.file, "CLP") : null;
+      intlData = latestIntl ? extractMovementsFromXls_(latestIntl.file, "USD") : null;
+      bancoResult = latestBanco ? extractMovementsFromBancoXls_(latestBanco.file) : null;
+    }
+  } else {
+    // Legacy path — hardcoded BCI/Banco Estado parsers
+    toast_(ss, "Scanning Drive folder…");
+    const legacy = findLatestFiles_(folder);
+    latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+    toast_(ss, "Converting NAC file…");
+    nacData  = latestNac  ? extractMovementsFromXls_(latestNac.file, "CLP") : null;
+    toast_(ss, "Converting INTL file…");
+    intlData = latestIntl ? extractMovementsFromXls_(latestIntl.file, "USD") : null;
+    if (latestBanco) {
+      toast_(ss, "Converting Banco file…");
+      bancoResult = extractMovementsFromBancoXls_(latestBanco.file);
+    }
+  }
 
   if (!latestNac && !latestIntl && !latestBanco) {
     const prev = ensureSheet_(ss, PREVIEW_TAB);
     prev.clear();
-    prev.getRange(1, 1).setValue("No matching bank files found in Bank_Drops folder.")
+    prev.getRange(1, 1).setValue("No matching bank files found in Drop folder.")
         .setFontFamily(FONT_FAMILY).setFontSize(11).setFontColor(THEME.STATUS_WARNING);
     if (dash) updateDashboardStatus_(dash, "PREVIEW: NO FILES", "No files found in Drop folder");
     return;
@@ -1134,18 +1240,6 @@ function doPreview_(ss) {
   const nacFP   = latestNac   ? fileFingerprint_(latestNac.file)   : "";
   const intlFP  = latestIntl  ? fileFingerprint_(latestIntl.file)  : "";
   const bancoFP = latestBanco ? fileFingerprint_(latestBanco.file) : "";
-
-  // Extract movements
-  toast_(ss, "Converting NAC file…");
-  const nacData  = latestNac  ? extractMovementsFromXls_(latestNac.file, "CLP") : null;
-  toast_(ss, "Converting INTL file…");
-  const intlData = latestIntl ? extractMovementsFromXls_(latestIntl.file, "USD") : null;
-
-  let bancoResult = null;
-  if (latestBanco) {
-    toast_(ss, "Converting Banco file…");
-    bancoResult = extractMovementsFromBancoXls_(latestBanco.file);
-  }
 
   // Compute stats
   const liveNac   = ss.getSheetByName(TAB_NAC);
@@ -1448,6 +1542,7 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
 
 function doConfirm_(ss) {
   ensureAllTabs_(ss);
+  ensureChileanLocale_(ss);
   const ui    = SpreadsheetApp.getUi();
   const props = PropertiesService.getScriptProperties();
   const dash  = ss.getSheetByName(DASHBOARD_TAB);
@@ -1473,10 +1568,26 @@ function doConfirm_(ss) {
 
   toast_(ss, "Verifying file integrity…");
   const folder = DriveApp.getFolderById(getDropFolderId_());
-  const latest = findLatestFiles_(folder);
-  const latestNac   = latest.nac;
-  const latestIntl  = latest.intl;
-  const latestBanco = latest.banco;
+  const apiKey = getGeminiApiKeyIfSet_();
+
+  let latestNac, latestIntl, latestBanco;
+  let geminiData = null;
+
+  if (apiKey) {
+    try {
+      geminiData = findAndExtractAllFilesGemini_(folder, apiKey);
+      latestNac = geminiData.nac; latestIntl = geminiData.intl; latestBanco = geminiData.banco;
+    } catch (geminiErr) {
+      Logger.log("Gemini failed in confirm, falling back: " + geminiErr.message);
+      toast_(ss, "Gemini failed, using legacy parsers…");
+      geminiData = null;
+      const legacy = findLatestFiles_(folder);
+      latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+    }
+  } else {
+    const legacy = findLatestFiles_(folder);
+    latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+  }
 
   const latestNacFP   = latestNac   ? fileFingerprint_(latestNac.file)   : "";
   const latestIntlFP  = latestIntl  ? fileFingerprint_(latestIntl.file)  : "";
@@ -1503,7 +1614,9 @@ function doConfirm_(ss) {
 
   if (latestNac) {
     toast_(ss, "Importing NAC movements…");
-    const nacData = extractMovementsFromXls_(latestNac.file, "CLP");
+    const nacData = geminiData && geminiData.nac
+      ? geminiData.nac.extractedData
+      : extractMovementsFromXls_(latestNac.file, "CLP");
     overwriteTab_(ss, TAB_NAC, nacData, "CLP", categories, config);
     props.setProperty("LAST_NAC_FP", latestNacFP);
     nacRows = Math.max(0, nacData.length - 1);
@@ -1514,7 +1627,9 @@ function doConfirm_(ss) {
 
   if (latestIntl) {
     toast_(ss, "Importing INTL movements…");
-    const intlData = extractMovementsFromXls_(latestIntl.file, "USD");
+    const intlData = geminiData && geminiData.intl
+      ? geminiData.intl.extractedData
+      : extractMovementsFromXls_(latestIntl.file, "USD");
     overwriteTab_(ss, TAB_INTL, intlData, "USD", categories, config);
     props.setProperty("LAST_INTL_FP", latestIntlFP);
     intlRows = Math.max(0, intlData.length - 1);
@@ -1525,13 +1640,17 @@ function doConfirm_(ss) {
 
   if (latestBanco) {
     toast_(ss, "Importing Banco movements…");
-    const bancoResult = extractMovementsFromBancoXls_(latestBanco.file);
+    let bancoResult;
+    if (geminiData && geminiData.banco) {
+      bancoResult = { data: geminiData.banco.extractedData, saldoDisponible: geminiData.banco.saldoDisponible };
+    } else {
+      bancoResult = extractMovementsFromBancoXls_(latestBanco.file);
+    }
     overwriteBancoTab_(ss, bancoResult.data, categories);
     props.setProperty("LAST_BANCO_FP", latestBancoFP);
     bancoRows = Math.max(0, bancoResult.data.length - 1);
     bancoBalance = bancoResult.saldoDisponible;
     props.setProperty("BANCO_SALDO_DISPONIBLE", String(bancoBalance));
-    // Sum absolute value of negative amounts (debits)
     for (let i = 1; i < bancoResult.data.length; i++) {
       const m = bancoResult.data[i][2];
       if (typeof m === "number" && m < 0) bancoDebits += Math.abs(m);
@@ -1539,6 +1658,19 @@ function doConfirm_(ss) {
     statusParts.push("BANCO: IMPORTED");
   } else {
     statusParts.push("BANCO: NO FILE");
+  }
+
+  // Move imported files to _imported/ subfolder
+  try {
+    const filesToMove = [latestNac, latestIntl, latestBanco]
+      .filter(Boolean)
+      .map(f => f.file);
+    if (filesToMove.length > 0) {
+      toast_(ss, "Moving files to _imported/…");
+      moveFilesToImported_(folder, filesToMove);
+    }
+  } catch (moveErr) {
+    Logger.log("Failed to move files: " + moveErr.message);
   }
 
   // Clear preview state
@@ -1951,6 +2083,7 @@ function rebuildResumenCategorias_(ss, categories, config) {
  */
 function doRefreshCalculations_(ss) {
   ensureAllTabs_(ss);
+  ensureChileanLocale_(ss);
   toast_(ss, "Reading configuration…");
   const config = readConfig_(ss);
   const categories = readCategories_(ss);
@@ -2387,6 +2520,19 @@ function ensureAllTabs_(ss) {
   ensureSheet_(ss, PREVIEW_TAB);
 }
 
+function moveFilesToImported_(folder, files) {
+  let dest;
+  const iter = folder.getFoldersByName("_imported");
+  if (iter.hasNext()) {
+    dest = iter.next();
+  } else {
+    dest = folder.createFolder("_imported");
+  }
+  for (const f of files) {
+    if (f) f.moveTo(dest);
+  }
+}
+
 /** Sum a column (1-indexed) from row 2 onward. */
 function sumColumn_(sheet, colNumber) {
   const last = sheet.getLastRow();
@@ -2422,4 +2568,139 @@ function sumArrayCol_(arr, idx) {
     if (isFinite(n)) s += n;
   }
   return s;
+}
+
+/******************************************************************************
+ * §16  GEMINI AI EXTRACTION
+ ******************************************************************************/
+
+function callGemini_(prompt, apiKey) {
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/"
+    + GEMINI_MODEL + ":generateContent?key=" + apiKey;
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0,
+    },
+  };
+  const resp = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+  const code = resp.getResponseCode();
+  if (code !== 200) {
+    throw new Error("Gemini API error " + code + ": " + resp.getContentText().substring(0, 200));
+  }
+  const body = JSON.parse(resp.getContentText());
+  const text = body.candidates[0].content.parts[0].text;
+  return JSON.parse(text);
+}
+
+function convertFileToArray_(file) {
+  const blob = file.getBlob();
+  const resource = { name: "[temp] " + file.getName(), mimeType: MimeType.GOOGLE_SHEETS };
+  const converted = Drive.Files.create(resource, blob, { convert: true });
+  try {
+    const tmpSS = SpreadsheetApp.openById(converted.id);
+    const sheet = tmpSS.getSheets()[0];
+    if (sheet.getLastRow() === 0) return [];
+    return sheet.getDataRange().getValues();
+  } finally {
+    DriveApp.getFileById(converted.id).setTrashed(true);
+  }
+}
+
+function classifyAndExtractWithGemini_(values, apiKey) {
+  const maxRows = 500;
+  const rows = values.slice(0, maxRows);
+  const tsv = rows.map(r => r.map(c => String(c)).join("\t")).join("\n");
+
+  const prompt = `You are analyzing a Chilean bank statement exported as a spreadsheet.
+
+SPREADSHEET DATA (tab-separated):
+${tsv}
+
+TASK:
+1. Classify this file as exactly one of: "cc_nacional", "cc_internacional", "banco", "unknown"
+   - cc_nacional: Chilean credit card statement in CLP (pesos)
+   - cc_internacional: International credit card statement in USD or foreign currency
+   - banco: Checking/savings account statement (has debits and credits, saldo disponible)
+   - unknown: Cannot determine
+2. Extract ALL transaction/movement rows as a JSON array
+3. For "banco" type: also extract the "Saldo Disponible" (available balance) value
+
+RESPONSE (strict JSON, no markdown):
+{
+  "type": "cc_nacional",
+  "currency": "CLP",
+  "saldo_disponible": null,
+  "movements": [
+    {"fecha": "09/03/2026", "descripcion": "COMPRA SUPERMERCADO", "monto": 45000}
+  ]
+}
+
+RULES:
+- For banco type: negative monto = cargo/debit, positive monto = abono/credit
+- For CC types: monto is the charge amount (always positive)
+- Dates must be DD/MM/YYYY format
+- Clean numeric values: no thousand separators, use period for decimals
+- Include ALL data rows, skip headers/totals/subtotals
+- saldo_disponible is null for CC types`;
+
+  return callGemini_(prompt, apiKey);
+}
+
+function findAndExtractAllFilesGemini_(folder, apiKey) {
+  const files = folder.getFiles();
+  const results = { nac: null, intl: null, banco: null };
+  const dates = { nac: 0, intl: 0, banco: 0 };
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const name = file.getName().toLowerCase();
+    if (name.startsWith(".") || name.startsWith("~$")) continue;
+
+    const mime = file.getMimeType();
+    if (mime.indexOf("spreadsheet") < 0 && mime.indexOf("excel") < 0
+        && mime.indexOf("csv") < 0 && !name.endsWith(".xls") && !name.endsWith(".xlsx")) {
+      continue;
+    }
+
+    const values = convertFileToArray_(file);
+    if (!values || values.length < 2) continue;
+
+    const gemini = classifyAndExtractWithGemini_(values, apiKey);
+    if (!gemini || gemini.type === "unknown" || !gemini.movements) continue;
+
+    const fileDate = extractDateFromName_(file.getName()) || file.getLastUpdated().getTime();
+    const typeKey = gemini.type === "cc_nacional" ? "nac"
+                  : gemini.type === "cc_internacional" ? "intl"
+                  : gemini.type === "banco" ? "banco" : null;
+    if (!typeKey) continue;
+
+    if (fileDate >= dates[typeKey]) {
+      dates[typeKey] = fileDate;
+      const currency = gemini.currency || (typeKey === "intl" ? "USD" : "CLP");
+      const montoCol = currency === "USD" ? "Monto_USD" : "Monto_CLP";
+
+      const data = [["Fecha", "Descripcion", montoCol]];
+      for (const m of gemini.movements) {
+        const fecha = m.fecha || "";
+        const desc = m.descripcion || "";
+        const monto = typeof m.monto === "number" ? m.monto : parseFloat(String(m.monto).replace(/[^\d.-]/g, "")) || 0;
+        data.push([fecha, desc, monto]);
+      }
+
+      results[typeKey] = {
+        file: file,
+        fileDate: fileDate,
+        extractedData: data,
+        saldoDisponible: gemini.saldo_disponible || 0,
+      };
+    }
+  }
+  return results;
 }

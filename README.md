@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Personal finance dashboard &amp; bank statement importer for Google Sheets</strong><br/>
-  <sub>🇨🇱 Built for Chilean banks — BCI Credit Cards &amp; Banco Estado Checking</sub>
+  <sub>🇨🇱 Built for Chilean banks — supports any bank via Gemini AI</sub>
 </p>
 
 <p align="center">
@@ -15,6 +15,7 @@
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Google%20Sheets-34A853?style=flat-square&logo=googlesheets&logoColor=white" alt="Google Sheets" /></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Drive%20API%20v3-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="Drive API" /></a>
   <a href="#-setup"><img src="https://img.shields.io/badge/clasp-managed-F4B400?style=flat-square&logo=google&logoColor=white" alt="clasp managed" /></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Gemini%20AI-886FBF?style=flat-square&logo=googlegemini&logoColor=white" alt="Gemini AI" /></a>
 </p>
 
 <p align="center">
@@ -35,11 +36,17 @@
 
 ## ✨ Features
 
+🤖 **Gemini AI Universal Parsing**
+> Supports any bank file format from any Chilean bank. Gemini classifies and extracts movements automatically. Falls back to legacy BCI/Banco Estado parsers if no API key is configured.
+
 🔄 **Preview → Confirm Workflow**
 > Safe two-step import with file fingerprint verification. No accidental overwrites.
 
+📂 **Auto-Organize Imported Files**
+> After confirming an import, source files are moved to a `_imported/` subfolder in Drive. No re-imports.
+
 🏦 **Banco Estado Checking Account**
-> Import checking account movements. Available Margin is capped at your actual bank balance — no more inflated numbers.
+> Import checking account movements. Available Margin is capped at your actual bank balance.
 
 💳 **BCI Credit Cards** (🇨🇱 Nacional CLP + 🌎 Internacional USD)
 > Import BCI credit card statements with automatic currency conversion.
@@ -51,7 +58,7 @@
 > Detects `CC 03-12` / `CF 01-06` patterns and calculates remaining payments.
 
 💰 **CC Payment Estimates**
-> Per-card payment breakdown (unbilled + installments) and combined total — see what your CC bill will actually be.
+> Per-card payment breakdown with combined CLP total.
 
 📊 **Financial Dashboard**
 > One-glance overview: income vs expenses, FSI stability index, savings recommendations, burn rate.
@@ -60,31 +67,33 @@
 > `CONFIG` and `CATEGORIAS` tabs auto-create with sensible defaults. Works out of the box.
 
 🎨 **Midnight Finance Theme**
-> Dark navy headers, teal accents, conditional coloring, zebra stripes — applied idempotently.
+> Dark navy headers, teal accents, conditional coloring, zebra stripes — Chilean locale (`es_CL`) enforced.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Google Drive (Bank_Drops folder)
+Google Drive (Drop folder)
   │
-  ├── 💳 BCI Credit Cards
-  │   ├── MovimientosNoFacturadosNacionales_DD-MM-YYYY.xls      (CLP)
-  │   └── MovimientosNoFacturadosInternacionales_DD-MM-YYYY.xls  (USD)
+  ├── Any bank statement (.xls, .xlsx, .csv)
+  │   └── Gemini AI classifies → CC Nacional / CC Intl / Banco
   │
-  └── 🏦 Banco Estado Checking
-      └── Ultimos_Movimientos_Cuenta_Corriente_*.xlsx             (CLP)
+  ├── _imported/          ◄── Files moved here after confirm
+  │
           │
           ▼
-  ┌─────────────────────────┐
-  │  💰 Management Menu     │
-  │  ├─ Preview import      │──▶ PREVIEW tab (read-only look)
-  │  ├─ Confirm import      │──▶ Overwrites live tabs
-  │  ├─ Cancel preview      │──▶ Clears preview state
-  │  ├─ Refresh calculations│──▶ Recalculates from CONFIG
-  │  └─ Apply theme         │──▶ Formats all 9 tabs
-  └─────────────────────────┘
+  ┌──────────────────────────────┐
+  │  💰 Management Menu          │
+  │  ├─ Preview import           │──▶ PREVIEW tab (read-only)
+  │  ├─ Confirm import           │──▶ Live tabs + move files
+  │  ├─ Cancel preview           │──▶ Clears preview state
+  │  ├─ Refresh calculations     │──▶ Recalculates from CONFIG
+  │  ├─ Apply theme              │──▶ Formats all 9 tabs
+  │  └─ ⚙️ Settings               │
+  │     ├─ Set Drop Folder       │
+  │     └─ Set Gemini API Key    │
+  └──────────────────────────────┘
           │
           ▼
   ┌─────────────────────────────────────────────┐
@@ -152,21 +161,25 @@ After first run, edit the `⚙️ CONFIG` tab with your values:
 
 ### 5. Set Drop Folder
 
-On first run, the script will prompt for your Google Drive folder URL or ID and store it as a Script Property.
+On first run, the script will prompt for your Google Drive folder URL or ID and store it as a Script Property. You can also set it via **💰 Management → ⚙️ Settings → Set Drop Folder**.
 
-### 6. Import
+### 6. Set Gemini API Key (optional)
 
-1. Drop `.xls`/`.xlsx` files into the Drive folder
+For universal bank file support, set your Gemini API key via **💰 Management → ⚙️ Settings → Set Gemini API Key**. Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Without it, the legacy BCI/Banco Estado parsers are used.
+
+### 7. Import
+
+1. Drop `.xls`/`.xlsx`/`.csv` files into the Drive folder
 2. **💰 Management → Preview import** — review in PREVIEW tab
-3. **💰 Management → Confirm import** — writes to live tabs
+3. **💰 Management → Confirm import** — writes to live tabs, moves files to `_imported/`
 
 ---
 
 ## 🛡️ Security
 
-Sensitive values (Drive folder IDs) are stored as **Script Properties** via `PropertiesService` — never hardcoded in source.
+Sensitive values (Drive folder ID, Gemini API key) are stored as **Script Properties** via `PropertiesService` — never hardcoded in source.
 
-On first run, the script prompts for the folder URL/ID and saves it server-side.
+On first run, the script prompts for required values and saves them server-side.
 
 ---
 
@@ -177,5 +190,6 @@ On first run, the script prompts for the folder URL/ID and saves it server-side.
 | <img src="https://www.gstatic.com/images/branding/product/2x/apps_script_48dp.png" width="16" /> | **Google Apps Script** | Runtime & automation |
 | <img src="https://www.gstatic.com/images/branding/product/2x/sheets_2020q4_48dp.png" width="16" /> | **Google Sheets** | Data storage & UI |
 | <img src="https://www.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png" width="16" /> | **Drive API v3** | `.xls`/`.xlsx` → Sheets conversion |
-| 🔐 | **PropertiesService** | Fingerprints, history, banco saldo |
-| 🎨 | **Midnight Finance** | Custom dark theme palette |
+| <img src="https://www.gstatic.com/images/branding/product/2x/gemini_sparkle_v002_d4735304ff6292a690345.png" width="16" /> | **Gemini AI** | Universal bank file classification & extraction |
+| 🔐 | **PropertiesService** | API keys, fingerprints, history, config |
+| 🎨 | **Midnight Finance** | Custom dark theme palette (es_CL locale) |
