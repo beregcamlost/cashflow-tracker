@@ -17,7 +17,35 @@
  * §1  CONFIG & THEME
  ******************************************************************************/
 
-const DROP_FOLDER_ID = "YOUR_DROP_FOLDER_ID";
+const PROP_DROP_FOLDER = "DROP_FOLDER_ID";
+
+/**
+ * Returns the configured Drop Folder ID from Script Properties.
+ * Prompts the user via dialog if not yet configured.
+ */
+function getDropFolderId_() {
+  const props = PropertiesService.getScriptProperties();
+  let id = props.getProperty(PROP_DROP_FOLDER);
+  if (id) return id;
+
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.prompt(
+    "Drop Folder Setup",
+    "Paste your Google Drive folder URL or ID.\n\n" +
+    "Example: https://drive.google.com/drive/folders/1Ab2Cd3... or just the ID",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (resp.getSelectedButton() !== ui.Button.OK) {
+    throw new Error("Drop folder ID is required. Set it in File > Project properties > Script properties.");
+  }
+
+  const input = resp.getResponseText().trim();
+  const match = input.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  id = match ? match[1] : input;
+
+  props.setProperty(PROP_DROP_FOLDER, id);
+  return id;
+}
 
 const NAC_REGEX   = /^MovimientosNoFacturadosNacionales_.*/i;
 const INTL_REGEX  = /^MovimientosNoFacturadosInternacionales_.*/i;
@@ -1086,7 +1114,7 @@ function doPreview_(ss) {
   ensureAllTabs_(ss);
   const props = PropertiesService.getScriptProperties();
   const dash  = ss.getSheetByName(DASHBOARD_TAB);
-  const folder = DriveApp.getFolderById(DROP_FOLDER_ID);
+  const folder = DriveApp.getFolderById(getDropFolderId_());
 
   toast_(ss, "Scanning Drive folder…");
   const latest = findLatestFiles_(folder);
@@ -1444,7 +1472,7 @@ function doConfirm_(ss) {
   }
 
   toast_(ss, "Verifying file integrity…");
-  const folder = DriveApp.getFolderById(DROP_FOLDER_ID);
+  const folder = DriveApp.getFolderById(getDropFolderId_());
   const latest = findLatestFiles_(folder);
   const latestNac   = latest.nac;
   const latestIntl  = latest.intl;

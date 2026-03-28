@@ -8,11 +8,8 @@ CLAUDE.md
 # Serena
 .serena/
 
-# Bank statement raw files (sensitive financial data)
-personal/cashflow/bank-drops/
-
-# Spreadsheet with real financial data
-personal/cashflow/cashflow.xlsx
+# clasp (local config)
+.clasp.json
 
 # Excel working files
 ~$*.xlsx
