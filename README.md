@@ -43,13 +43,13 @@
 > Safe two-step import with file fingerprint verification. No accidental overwrites.
 
 📂 **Auto-Organize Imported Files**
-> After confirming an import, source files are moved to a `_imported/` subfolder in Drive. No re-imports.
+> After confirming an import, all recognized bank files in the Drop folder are moved to `_imported/` — including old files from previous months.
 
 🏦 **Banco Estado Checking Account**
 > Import checking account movements. Available Margin is capped at your actual bank balance.
 
 💳 **BCI Credit Cards** (🇨🇱 Nacional CLP + 🌎 Internacional USD)
-> Import BCI credit card statements with automatic currency conversion.
+> Import billed (Facturados) and unbilled (NoFacturados) credit card statements. Both merge into the same tab with a "Tipo" column for filtering. Automatic currency conversion for international cards.
 
 🏷️ **Auto-Categorization**
 > Keyword-based rules match movements to categories (Transporte, Entretenimiento, Alimentacion, etc.)
@@ -77,7 +77,8 @@
 Google Drive (Drop folder)
   │
   ├── Any bank statement (.xls, .xlsx, .csv)
-  │   └── Gemini AI classifies → CC Nacional / CC Intl / Banco
+  │   ├── Gemini AI classifies → CC Nacional / CC Intl / Banco
+  │   └── Facturados + NoFacturados merged with "Tipo" column
   │
   ├── _imported/          ◄── Files moved here after confirm
   │

@@ -84,6 +84,8 @@ function ensureChileanLocale_(ss) {
 const NAC_REGEX   = /^MovimientosNoFacturadosNacionales_.*/i;
 const INTL_REGEX  = /^MovimientosNoFacturadosInternacionales_.*/i;
 const BANCO_REGEX = /^Ultimos_Movimientos_Cuenta_Corriente_.*/i;
+const NAC_FACT_REGEX  = /^MovimientosFacturadosNacionales_.*/i;
+const INTL_FACT_REGEX = /^MovimientosFacturadosInternacionales_.*/i;
 
 const TAB_NAC        = "🇨🇱 MOV_CC_NACIONAL";
 const TAB_INTL       = "🌎 MOV_CC_INTL";
@@ -512,15 +514,21 @@ function formatDataTab_(sheet, currency, isPreview) {
          .setNumberFormat(currency === "CLP" ? FMT_CLP : FMT_USD)
          .setHorizontalAlignment("right");
 
-    // Column D: Categoria, left-aligned
+    // Column D: Tipo, left-aligned
     if (numCols >= 4) {
       sheet.getRange(2, 4, lastRow - 1, 1)
            .setHorizontalAlignment("left");
     }
 
-    // Column E: Monto_CLP_est, right-aligned
+    // Column E: Categoria, left-aligned
     if (numCols >= 5) {
       sheet.getRange(2, 5, lastRow - 1, 1)
+           .setHorizontalAlignment("left");
+    }
+
+    // Column F: Monto_CLP_est (INTL only), right-aligned
+    if (numCols >= 6) {
+      sheet.getRange(2, 6, lastRow - 1, 1)
            .setNumberFormat(FMT_CLP)
            .setHorizontalAlignment("right");
     }
@@ -631,7 +639,7 @@ function formatDashboardChrome_(dash) {
       .setHorizontalAlignment("center");
 
   const finLabelsLeft  = ["Income (Salario)", "CC Nacional", "Total Expenses", "FSI (margin/income)"];
-  const finLabelsRight = ["Fixed Costs", "CC Intl (CLP)", "Available Margin", "Stability"];
+  const finLabelsRight = ["Housing", "CC Intl (CLP)", "Available Margin", "Stability"];
   for (let i = 0; i < finLabelsLeft.length; i++) {
     dash.getRange(10 + i, 1).setValue(finLabelsLeft[i])
         .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
@@ -816,13 +824,15 @@ function updateDashboardStatus_(dash, status, detail) {
  */
 function updateDashboardFileInfo_(dash, nacInfo, intlInfo, bancoInfo) {
   // NAC filename (F5:H5)
+  const nacDisplay = [nacInfo.name, nacInfo.factName].filter(Boolean).join(" + ") || "—";
   dash.getRange(5, 6, 1, 3).merge()
-      .setValue(nacInfo.name || "—")
+      .setValue(nacDisplay)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   // INTL filename (F6:H6)
+  const intlDisplay = [intlInfo.name, intlInfo.factName].filter(Boolean).join(" + ") || "—";
   dash.getRange(6, 6, 1, 3).merge()
-      .setValue(intlInfo.name || "—")
+      .setValue(intlDisplay)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   // Banco filename (F7:H7)
@@ -938,7 +948,7 @@ function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDeb
 
   // Right side (cols F-H)
   dash.getRange(10, 6, 1, 3).merge()
-      .setValue(costosFijos).setNumberFormat(FMT_CLP)
+      .setValue(config.housing).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   dash.getRange(11, 6, 1, 3).merge()
@@ -1190,6 +1200,8 @@ function doPreview_(ss) {
   const apiKey = getGeminiApiKeyIfSet_();
   let latestNac, latestIntl, latestBanco;
   let nacData = null, intlData = null, bancoResult = null;
+  let latestNacFact, latestIntlFact;
+  let nacFactData = null, intlFactData = null;
 
   if (apiKey) {
     // Gemini AI path — supports any bank file format
@@ -1204,6 +1216,10 @@ function doPreview_(ss) {
       bancoResult = latestBanco
         ? { data: latestBanco.extractedData, saldoDisponible: latestBanco.saldoDisponible }
         : null;
+      latestNacFact  = gemini.nacFact;
+      latestIntlFact = gemini.intlFact;
+      nacFactData  = latestNacFact  ? latestNacFact.extractedData  : null;
+      intlFactData = latestIntlFact ? latestIntlFact.extractedData : null;
     } catch (geminiErr) {
       Logger.log("Gemini failed, falling back to legacy: " + geminiErr.message);
       toast_(ss, "Gemini failed, using legacy parsers…");
@@ -1212,6 +1228,9 @@ function doPreview_(ss) {
       nacData  = latestNac  ? extractMovementsFromXls_(latestNac.file, "CLP") : null;
       intlData = latestIntl ? extractMovementsFromXls_(latestIntl.file, "USD") : null;
       bancoResult = latestBanco ? extractMovementsFromBancoXls_(latestBanco.file) : null;
+      latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
+      nacFactData  = latestNacFact  ? extractMovementsFromXls_(latestNacFact.file, "CLP") : null;
+      intlFactData = latestIntlFact ? extractMovementsFromXls_(latestIntlFact.file, "USD") : null;
     }
   } else {
     // Legacy path — hardcoded BCI/Banco Estado parsers
@@ -1226,9 +1245,15 @@ function doPreview_(ss) {
       toast_(ss, "Converting Banco file…");
       bancoResult = extractMovementsFromBancoXls_(latestBanco.file);
     }
+    latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
+    nacFactData  = latestNacFact  ? extractMovementsFromXls_(latestNacFact.file, "CLP") : null;
+    intlFactData = latestIntlFact ? extractMovementsFromXls_(latestIntlFact.file, "USD") : null;
   }
 
-  if (!latestNac && !latestIntl && !latestBanco) {
+  nacData  = mergeWithTipo_(nacData, nacFactData);
+  intlData = mergeWithTipo_(intlData, intlFactData);
+
+  if (!latestNac && !latestIntl && !latestBanco && !latestNacFact && !latestIntlFact) {
     const prev = ensureSheet_(ss, PREVIEW_TAB);
     prev.clear();
     prev.getRange(1, 1).setValue("No matching bank files found in Drop folder.")
@@ -1259,6 +1284,12 @@ function doPreview_(ss) {
   props.setProperty("PREVIEW_NAC_NAME", latestNac ? latestNac.file.getName() : "");
   props.setProperty("PREVIEW_INTL_NAME", latestIntl ? latestIntl.file.getName() : "");
   props.setProperty("PREVIEW_BANCO_NAME", latestBanco ? latestBanco.file.getName() : "");
+  const nacFactFP  = latestNacFact  ? fileFingerprint_(latestNacFact.file)  : "";
+  const intlFactFP = latestIntlFact ? fileFingerprint_(latestIntlFact.file) : "";
+  props.setProperty("PREVIEW_NAC_FACT_FP", nacFactFP);
+  props.setProperty("PREVIEW_INTL_FACT_FP", intlFactFP);
+  props.setProperty("PREVIEW_NAC_FACT_NAME", latestNacFact ? latestNacFact.file.getName() : "");
+  props.setProperty("PREVIEW_INTL_FACT_NAME", latestIntlFact ? latestIntlFact.file.getName() : "");
 
   // Write combined preview tab
   toast_(ss, "Writing preview…");
@@ -1280,6 +1311,10 @@ function doPreview_(ss) {
     bancoFile: latestBanco ? latestBanco.file.getName() : "—",
     bancoRows: prevBancoRows,
     bancoSaldo: bancoResult ? bancoResult.saldoDisponible : 0,
+    nacFactFile: latestNacFact ? latestNacFact.file.getName() : "—",
+    nacFactFP: nacFactFP || "—",
+    intlFactFile: latestIntlFact ? latestIntlFact.file.getName() : "—",
+    intlFactFP: intlFactFP || "—",
   };
   const prevSheet = writePreview_(ss, nacData, intlData, bancoResult ? bancoResult.data : null, summaryInfo);
 
@@ -1290,9 +1325,11 @@ function doPreview_(ss) {
     updateDashboardFileInfo_(dash, {
       name: latestNac ? latestNac.file.getName() : null,
       date: latestNac ? String(latestNac.fileDate) : null,
+      factName: latestNacFact ? latestNacFact.file.getName() : null,
     }, {
       name: latestIntl ? latestIntl.file.getName() : null,
       date: latestIntl ? String(latestIntl.fileDate) : null,
+      factName: latestIntlFact ? latestIntlFact.file.getName() : null,
     }, {
       name: latestBanco ? latestBanco.file.getName() : null,
     });
@@ -1310,6 +1347,8 @@ function doPreview_(ss) {
     intlRows: prevIntlRows,
     bancoFile: latestBanco ? latestBanco.file.getName() : null,
     bancoRows: prevBancoRows,
+    nacFactFile: latestNacFact ? latestNacFact.file.getName() : null,
+    intlFactFile: latestIntlFact ? latestIntlFact.file.getName() : null,
     status: "OK",
   });
 
@@ -1385,6 +1424,18 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
     row++;
   }
 
+  // Facturado file info
+  if (info.nacFactFile && info.nacFactFile !== "—") {
+    prev.getRange(row, 1).setValue("NAC Fact file").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(9).setFontFamily(FONT_FAMILY);
+    prev.getRange(row, 2, 1, 2).merge().setValue(info.nacFactFile).setFontSize(9).setFontFamily(FONT_FAMILY);
+    row++;
+  }
+  if (info.intlFactFile && info.intlFactFile !== "—") {
+    prev.getRange(row, 1).setValue("INTL Fact file").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(9).setFontFamily(FONT_FAMILY);
+    prev.getRange(row, 2, 1, 2).merge().setValue(info.intlFactFile).setFontSize(9).setFontFamily(FONT_FAMILY);
+    row++;
+  }
+
   // Checksums
   prev.getRange(row, 1).setValue("NAC MD5").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(8).setFontFamily(FONT_FAMILY);
   prev.getRange(row, 2, 1, 2).merge().setValue(info.nacFP).setFontSize(8).setFontFamily(FONT_FAMILY).setFontColor(THEME.MUTED_TEXT);
@@ -1392,12 +1443,22 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
   prev.getRange(row, 1).setValue("INTL MD5").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(8).setFontFamily(FONT_FAMILY);
   prev.getRange(row, 2, 1, 2).merge().setValue(info.intlFP).setFontSize(8).setFontFamily(FONT_FAMILY).setFontColor(THEME.MUTED_TEXT);
   row++;
+  if (info.nacFactFP && info.nacFactFP !== "—") {
+    prev.getRange(row, 1).setValue("NAC Fact MD5").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(8).setFontFamily(FONT_FAMILY);
+    prev.getRange(row, 2, 1, 2).merge().setValue(info.nacFactFP).setFontSize(8).setFontFamily(FONT_FAMILY).setFontColor(THEME.MUTED_TEXT);
+    row++;
+  }
+  if (info.intlFactFP && info.intlFactFP !== "—") {
+    prev.getRange(row, 1).setValue("INTL Fact MD5").setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(8).setFontFamily(FONT_FAMILY);
+    prev.getRange(row, 2, 1, 2).merge().setValue(info.intlFactFP).setFontSize(8).setFontFamily(FONT_FAMILY).setFontColor(THEME.MUTED_TEXT);
+    row++;
+  }
 
   // Spacer row before NAC data
   row++;
 
   // ── Section 2: NAC Movements ───────────────────────────────────────────
-  prev.getRange(row, 1, 1, 3).merge()
+  prev.getRange(row, 1, 1, 4).merge()
       .setValue("CC NACIONAL (CLP)")
       .setBackground(THEME.PRIMARY)
       .setFontColor(THEME.WHITE)
@@ -1410,7 +1471,7 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
 
   if (nacData && nacData.length > 1) {
     // Header row
-    prev.getRange(row, 1, 1, 3).setValues([nacData[0]])
+    prev.getRange(row, 1, 1, 4).setValues([nacData[0]])
         .setBackground(THEME.PREVIEW_ACCENT)
         .setFontColor(THEME.WHITE)
         .setFontWeight("bold")
@@ -1421,21 +1482,22 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
 
     // Data rows
     const dataOnly = nacData.slice(1);
-    prev.getRange(row, 1, dataOnly.length, 3).setValues(dataOnly)
+    prev.getRange(row, 1, dataOnly.length, 4).setValues(dataOnly)
         .setFontSize(10).setFontFamily(FONT_FAMILY);
 
     // Format columns
     prev.getRange(row, 1, dataOnly.length, 1).setNumberFormat(FMT_DATE).setHorizontalAlignment("center");
     prev.getRange(row, 2, dataOnly.length, 1).setHorizontalAlignment("left");
     prev.getRange(row, 3, dataOnly.length, 1).setNumberFormat(FMT_CLP).setHorizontalAlignment("right");
+    prev.getRange(row, 4, dataOnly.length, 1).setHorizontalAlignment("left");
 
     // Zebra + conditional
-    applyZebraStripes_(prev, row, dataOnly.length, 3, true);
+    applyZebraStripes_(prev, row, dataOnly.length, 4, true);
     applyAmountConditionalFormatting_(prev, 3, row, row + dataOnly.length - 1);
 
     row += dataOnly.length;
   } else {
-    prev.getRange(row, 1, 1, 3).merge()
+    prev.getRange(row, 1, 1, 4).merge()
         .setValue("No nacional data")
         .setFontColor(THEME.MUTED_TEXT).setFontSize(10).setFontFamily(FONT_FAMILY)
         .setHorizontalAlignment("center");
@@ -1446,7 +1508,7 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
   row += 2;
 
   // ── Section 3: INTL Movements ──────────────────────────────────────────
-  prev.getRange(row, 1, 1, 3).merge()
+  prev.getRange(row, 1, 1, 4).merge()
       .setValue("CC INTERNACIONAL (USD)")
       .setBackground(THEME.SECONDARY)
       .setFontColor(THEME.WHITE)
@@ -1459,7 +1521,7 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
 
   if (intlData && intlData.length > 1) {
     // Header row
-    prev.getRange(row, 1, 1, 3).setValues([intlData[0]])
+    prev.getRange(row, 1, 1, 4).setValues([intlData[0]])
         .setBackground(THEME.PREVIEW_ACCENT)
         .setFontColor(THEME.WHITE)
         .setFontWeight("bold")
@@ -1470,19 +1532,20 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
 
     // Data rows
     const dataOnly = intlData.slice(1);
-    prev.getRange(row, 1, dataOnly.length, 3).setValues(dataOnly)
+    prev.getRange(row, 1, dataOnly.length, 4).setValues(dataOnly)
         .setFontSize(10).setFontFamily(FONT_FAMILY);
 
     prev.getRange(row, 1, dataOnly.length, 1).setNumberFormat(FMT_DATE).setHorizontalAlignment("center");
     prev.getRange(row, 2, dataOnly.length, 1).setHorizontalAlignment("left");
     prev.getRange(row, 3, dataOnly.length, 1).setNumberFormat(FMT_USD).setHorizontalAlignment("right");
+    prev.getRange(row, 4, dataOnly.length, 1).setHorizontalAlignment("left");
 
-    applyZebraStripes_(prev, row, dataOnly.length, 3, true);
+    applyZebraStripes_(prev, row, dataOnly.length, 4, true);
     applyAmountConditionalFormatting_(prev, 3, row, row + dataOnly.length - 1);
 
     row += dataOnly.length;
   } else {
-    prev.getRange(row, 1, 1, 3).merge()
+    prev.getRange(row, 1, 1, 4).merge()
         .setValue("No internacional data")
         .setFontColor(THEME.MUTED_TEXT).setFontSize(10).setFontFamily(FONT_FAMILY)
         .setHorizontalAlignment("center");
@@ -1531,7 +1594,7 @@ function writePreview_(ss, nacData, intlData, bancoData, info) {
   }
 
   // Auto-fit column widths to content
-  prev.autoResizeColumns(1, 3);
+  prev.autoResizeColumns(1, 4);
 
   return prev;
 }
@@ -1550,6 +1613,8 @@ function doConfirm_(ss) {
   const previewNacFP   = props.getProperty("PREVIEW_NAC_FP")   || "";
   const previewIntlFP  = props.getProperty("PREVIEW_INTL_FP")  || "";
   const previewBancoFP = props.getProperty("PREVIEW_BANCO_FP") || "";
+  const previewNacFactFP  = props.getProperty("PREVIEW_NAC_FACT_FP")  || "";
+  const previewIntlFactFP = props.getProperty("PREVIEW_INTL_FACT_FP") || "";
 
   if (!previewNacFP && !previewIntlFP && !previewBancoFP) {
     throw new Error("No preview found. Run Preview Import first.");
@@ -1571,27 +1636,33 @@ function doConfirm_(ss) {
   const apiKey = getGeminiApiKeyIfSet_();
 
   let latestNac, latestIntl, latestBanco;
+  let latestNacFact, latestIntlFact;
   let geminiData = null;
 
   if (apiKey) {
     try {
       geminiData = findAndExtractAllFilesGemini_(folder, apiKey);
       latestNac = geminiData.nac; latestIntl = geminiData.intl; latestBanco = geminiData.banco;
+      latestNacFact = geminiData.nacFact; latestIntlFact = geminiData.intlFact;
     } catch (geminiErr) {
       Logger.log("Gemini failed in confirm, falling back: " + geminiErr.message);
       toast_(ss, "Gemini failed, using legacy parsers…");
       geminiData = null;
       const legacy = findLatestFiles_(folder);
       latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+      latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
     }
   } else {
     const legacy = findLatestFiles_(folder);
     latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+    latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
   }
 
   const latestNacFP   = latestNac   ? fileFingerprint_(latestNac.file)   : "";
   const latestIntlFP  = latestIntl  ? fileFingerprint_(latestIntl.file)  : "";
   const latestBancoFP = latestBanco ? fileFingerprint_(latestBanco.file) : "";
+  const latestNacFactFP   = latestNacFact  ? fileFingerprint_(latestNacFact.file)  : "";
+  const latestIntlFactFP  = latestIntlFact ? fileFingerprint_(latestIntlFact.file) : "";
 
   if (latestNac && previewNacFP && latestNacFP !== previewNacFP) {
     throw new Error("NAC file changed since preview. Run Preview Import again.");
@@ -1601,6 +1672,12 @@ function doConfirm_(ss) {
   }
   if (latestBanco && previewBancoFP && latestBancoFP !== previewBancoFP) {
     throw new Error("Banco file changed since preview. Run Preview Import again.");
+  }
+  if (latestNacFact && previewNacFactFP && latestNacFactFP !== previewNacFactFP) {
+    throw new Error("NAC Facturado file changed since preview. Run Preview Import again.");
+  }
+  if (latestIntlFact && previewIntlFactFP && latestIntlFactFP !== previewIntlFactFP) {
+    throw new Error("INTL Facturado file changed since preview. Run Preview Import again.");
   }
 
   // Read config and categories for auto-categorization
@@ -1612,26 +1689,28 @@ function doConfirm_(ss) {
   let nacRows = 0, intlRows = 0, bancoRows = 0;
   let bancoDebits = 0, bancoBalance = 0;
 
-  if (latestNac) {
+  if (latestNac || latestNacFact) {
     toast_(ss, "Importing NAC movements…");
-    const nacData = geminiData && geminiData.nac
-      ? geminiData.nac.extractedData
-      : extractMovementsFromXls_(latestNac.file, "CLP");
+    const nacNoFact = latestNac ? (geminiData && geminiData.nac ? geminiData.nac.extractedData : extractMovementsFromXls_(latestNac.file, "CLP")) : null;
+    const nacFact = latestNacFact ? (geminiData && geminiData.nacFact ? geminiData.nacFact.extractedData : extractMovementsFromXls_(latestNacFact.file, "CLP")) : null;
+    const nacData = mergeWithTipo_(nacNoFact, nacFact);
     overwriteTab_(ss, TAB_NAC, nacData, "CLP", categories, config);
-    props.setProperty("LAST_NAC_FP", latestNacFP);
+    if (latestNac) props.setProperty("LAST_NAC_FP", latestNacFP);
+    if (latestNacFact) props.setProperty("LAST_NAC_FACT_FP", latestNacFactFP);
     nacRows = Math.max(0, nacData.length - 1);
     statusParts.push("NAC: IMPORTED");
   } else {
     statusParts.push("NAC: NO FILE");
   }
 
-  if (latestIntl) {
+  if (latestIntl || latestIntlFact) {
     toast_(ss, "Importing INTL movements…");
-    const intlData = geminiData && geminiData.intl
-      ? geminiData.intl.extractedData
-      : extractMovementsFromXls_(latestIntl.file, "USD");
+    const intlNoFact = latestIntl ? (geminiData && geminiData.intl ? geminiData.intl.extractedData : extractMovementsFromXls_(latestIntl.file, "USD")) : null;
+    const intlFact = latestIntlFact ? (geminiData && geminiData.intlFact ? geminiData.intlFact.extractedData : extractMovementsFromXls_(latestIntlFact.file, "USD")) : null;
+    const intlData = mergeWithTipo_(intlNoFact, intlFact);
     overwriteTab_(ss, TAB_INTL, intlData, "USD", categories, config);
-    props.setProperty("LAST_INTL_FP", latestIntlFP);
+    if (latestIntl) props.setProperty("LAST_INTL_FP", latestIntlFP);
+    if (latestIntlFact) props.setProperty("LAST_INTL_FACT_FP", latestIntlFactFP);
     intlRows = Math.max(0, intlData.length - 1);
     statusParts.push("INTL: IMPORTED");
   } else {
@@ -1662,11 +1741,18 @@ function doConfirm_(ss) {
 
   // Move imported files to _imported/ subfolder
   try {
-    const filesToMove = [latestNac, latestIntl, latestBanco]
-      .filter(Boolean)
-      .map(f => f.file);
+    toast_(ss, "Moving files to _imported/…");
+    const allFiles = folder.getFiles();
+    const filesToMove = [];
+    while (allFiles.hasNext()) {
+      const f = allFiles.next();
+      const name = f.getName();
+      if (NAC_REGEX.test(name) || INTL_REGEX.test(name) || BANCO_REGEX.test(name)
+          || NAC_FACT_REGEX.test(name) || INTL_FACT_REGEX.test(name)) {
+        filesToMove.push(f);
+      }
+    }
     if (filesToMove.length > 0) {
-      toast_(ss, "Moving files to _imported/…");
       moveFilesToImported_(folder, filesToMove);
     }
   } catch (moveErr) {
@@ -1680,6 +1766,10 @@ function doConfirm_(ss) {
   props.deleteProperty("PREVIEW_NAC_NAME");
   props.deleteProperty("PREVIEW_INTL_NAME");
   props.deleteProperty("PREVIEW_BANCO_NAME");
+  props.deleteProperty("PREVIEW_NAC_FACT_FP");
+  props.deleteProperty("PREVIEW_INTL_FACT_FP");
+  props.deleteProperty("PREVIEW_NAC_FACT_NAME");
+  props.deleteProperty("PREVIEW_INTL_FACT_NAME");
 
   // Clear preview tab
   const prev = ss.getSheetByName(PREVIEW_TAB);
@@ -1696,8 +1786,10 @@ function doConfirm_(ss) {
   logImport_("CONFIRM", {
     nacFile: latestNac ? latestNac.file.getName() : null,
     nacRows: nacRows,
+    nacFactFile: latestNacFact ? latestNacFact.file.getName() : null,
     intlFile: latestIntl ? latestIntl.file.getName() : null,
     intlRows: intlRows,
+    intlFactFile: latestIntlFact ? latestIntlFact.file.getName() : null,
     bancoFile: latestBanco ? latestBanco.file.getName() : null,
     bancoRows: bancoRows,
     status: "OK",
@@ -1717,9 +1809,11 @@ function doConfirm_(ss) {
     updateDashboardFileInfo_(dash, {
       name: latestNac ? latestNac.file.getName() : null,
       date: latestNac ? String(latestNac.fileDate) : null,
+      factName: latestNacFact ? latestNacFact.file.getName() : null,
     }, {
       name: latestIntl ? latestIntl.file.getName() : null,
       date: latestIntl ? String(latestIntl.fileDate) : null,
+      factName: latestIntlFact ? latestIntlFact.file.getName() : null,
     }, {
       name: latestBanco ? latestBanco.file.getName() : null,
     });
@@ -1756,6 +1850,10 @@ function doCancel_(ss) {
   props.deleteProperty("PREVIEW_NAC_NAME");
   props.deleteProperty("PREVIEW_INTL_NAME");
   props.deleteProperty("PREVIEW_BANCO_NAME");
+  props.deleteProperty("PREVIEW_NAC_FACT_FP");
+  props.deleteProperty("PREVIEW_INTL_FACT_FP");
+  props.deleteProperty("PREVIEW_NAC_FACT_NAME");
+  props.deleteProperty("PREVIEW_INTL_FACT_NAME");
 
   logImport_("CANCEL", { status: "Cancelled" });
 
@@ -2154,6 +2252,8 @@ function findLatestFiles_(folder) {
   let latestNac = null;
   let latestIntl = null;
   let latestBanco = null;
+  let latestNacFact = null;
+  let latestIntlFact = null;
 
   while (files.hasNext()) {
     const f = files.next();
@@ -2174,8 +2274,14 @@ function findLatestFiles_(folder) {
     if (BANCO_REGEX.test(name)) {
       if (!latestBanco || d > latestBanco.fileDate) latestBanco = { file: f, fileDate: d };
     }
+    if (NAC_FACT_REGEX.test(name)) {
+      if (!latestNacFact || d > latestNacFact.fileDate) latestNacFact = { file: f, fileDate: d };
+    }
+    if (INTL_FACT_REGEX.test(name)) {
+      if (!latestIntlFact || d > latestIntlFact.fileDate) latestIntlFact = { file: f, fileDate: d };
+    }
   }
-  return { nac: latestNac, intl: latestIntl, banco: latestBanco };
+  return { nac: latestNac, intl: latestIntl, banco: latestBanco, nacFact: latestNacFact, intlFact: latestIntlFact };
 }
 
 /** Extract YYYYMMDD integer from filename date patterns. */
@@ -2203,6 +2309,24 @@ function isValidDateParts_(yyyy, mm, dd) {
   if (dd < 1 || dd > 31) return false;
   const d = new Date(Date.UTC(yyyy, mm - 1, dd));
   return d.getUTCFullYear() === yyyy && d.getUTCMonth() === (mm - 1) && d.getUTCDate() === dd;
+}
+
+function mergeWithTipo_(noFactData, factData) {
+  const source = noFactData || factData;
+  if (!source) return null;
+  const header = [...source[0], "Tipo"];
+  const merged = [header];
+  if (noFactData) {
+    for (let i = 1; i < noFactData.length; i++) {
+      merged.push([...noFactData[i], "No Facturado"]);
+    }
+  }
+  if (factData) {
+    for (let i = 1; i < factData.length; i++) {
+      merged.push([...factData[i], "Facturado"]);
+    }
+  }
+  return merged;
 }
 
 /**
@@ -2655,8 +2779,9 @@ RULES:
 
 function findAndExtractAllFilesGemini_(folder, apiKey) {
   const files = folder.getFiles();
-  const results = { nac: null, intl: null, banco: null };
-  const dates = { nac: 0, intl: 0, banco: 0 };
+  const results = { nac: null, intl: null, banco: null, nacFact: null, intlFact: null };
+  const dates = { nac: 0, intl: 0, banco: 0, nacFact: 0, intlFact: 0 };
+  let callCount = 0;
 
   while (files.hasNext()) {
     const file = files.next();
@@ -2672,13 +2797,20 @@ function findAndExtractAllFilesGemini_(folder, apiKey) {
     const values = convertFileToArray_(file);
     if (!values || values.length < 2) continue;
 
+    // Rate-limit: wait between Gemini calls to avoid 429
+    if (callCount > 0) Utilities.sleep(4000);
+    callCount++;
+
     const gemini = classifyAndExtractWithGemini_(values, apiKey);
     if (!gemini || gemini.type === "unknown" || !gemini.movements) continue;
 
     const fileDate = extractDateFromName_(file.getName()) || file.getLastUpdated().getTime();
-    const typeKey = gemini.type === "cc_nacional" ? "nac"
-                  : gemini.type === "cc_internacional" ? "intl"
-                  : gemini.type === "banco" ? "banco" : null;
+    const originalName = file.getName();
+    const isFacturado = /Facturados/i.test(originalName) && !/NoFacturados/i.test(originalName);
+    const typeKey = gemini.type === "cc_nacional"      ? (isFacturado ? "nacFact" : "nac")
+                  : gemini.type === "cc_internacional" ? (isFacturado ? "intlFact" : "intl")
+                  : gemini.type === "banco"            ? "banco"
+                  : null;
     if (!typeKey) continue;
 
     if (fileDate >= dates[typeKey]) {
