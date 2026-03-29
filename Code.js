@@ -1818,9 +1818,9 @@ function doConfirm_(ss) {
       name: latestBanco ? latestBanco.file.getName() : null,
     });
 
-    // Financial overview + installments
-    const nacPositiveSum = liveNac ? sumPositiveColumn_(liveNac, 3) : 0;
-    const intlPositiveSum = liveIntl ? sumPositiveColumn_(liveIntl, 3) : 0;
+    // Financial overview + installments (use billed amounts only for estimates)
+    const nacPositiveSum = liveNac ? sumPositiveBilled_(liveNac) : 0;
+    const intlPositiveSum = liveIntl ? sumPositiveBilled_(liveIntl) : 0;
     const intlTotalCLP = intlPositiveSum * config.usdClp;
     updateFinancialOverview_(dash, config, nacPositiveSum, intlTotalCLP, bancoDebits, bancoBalance);
     updateInstallmentsSummary_(dash, cuotasStats);
@@ -2215,9 +2215,9 @@ function doRefreshCalculations_(ss) {
     const saldoProp = PropertiesService.getScriptProperties().getProperty("BANCO_SALDO_DISPONIBLE");
     if (saldoProp) bancoBalance = parseFloat(saldoProp) || 0;
 
-    // Financial overview
-    const nacPositiveSum = liveNac ? sumPositiveColumn_(liveNac, 3) : 0;
-    const intlPositiveSum = liveIntl ? sumPositiveColumn_(liveIntl, 3) : 0;
+    // Financial overview (use billed amounts only for estimates)
+    const nacPositiveSum = liveNac ? sumPositiveBilled_(liveNac) : 0;
+    const intlPositiveSum = liveIntl ? sumPositiveBilled_(liveIntl) : 0;
     const intlTotalCLP = intlPositiveSum * config.usdClp;
     updateFinancialOverview_(dash, config, nacPositiveSum, intlTotalCLP, bancoDebits, bancoBalance);
 
@@ -2681,6 +2681,25 @@ function sumPositiveColumn_(sheet, colNumber) {
     if (isFinite(n) && n > 0) s += n;
   }
   return s;
+}
+
+function sumPositiveByTipo_(sheet, montoCol, tipoCol, tipo) {
+  const last = sheet.getLastRow();
+  if (last < 2) return 0;
+  const vals = sheet.getRange(2, 1, last - 1, Math.max(montoCol, tipoCol)).getValues();
+  let s = 0;
+  for (const row of vals) {
+    if (String(row[tipoCol - 1]).trim() !== tipo) continue;
+    const n = typeof row[montoCol - 1] === "number" ? row[montoCol - 1]
+            : parseFloat(String(row[montoCol - 1]).replace(/[^\d.-]/g, ""));
+    if (isFinite(n) && n > 0) s += n;
+  }
+  return s;
+}
+
+function sumPositiveBilled_(sheet) {
+  const factSum = sumPositiveByTipo_(sheet, 3, 4, "Facturado");
+  return factSum > 0 ? factSum : sumPositiveByTipo_(sheet, 3, 4, "No Facturado");
 }
 
 /** Sum a column (0-indexed) from array row 1 onward (skipping header). */

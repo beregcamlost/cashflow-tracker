@@ -49,7 +49,7 @@
 > Import checking account movements. Available Margin is capped at your actual bank balance.
 
 💳 **BCI Credit Cards** (🇨🇱 Nacional CLP + 🌎 Internacional USD)
-> Import billed (Facturados) and unbilled (NoFacturados) credit card statements. Both merge into the same tab with a "Tipo" column for filtering. Automatic currency conversion for international cards.
+> Import billed (Facturados) and unbilled (NoFacturados) credit card statements. Both merge into the same tab with a "Tipo" column for filtering. Dashboard payment estimates use billed amounts when available, falling back to unbilled. Automatic currency conversion for international cards.
 
 🏷️ **Auto-Categorization**
 > Keyword-based rules match movements to categories (Transporte, Entretenimiento, Alimentacion, etc.)
