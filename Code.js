@@ -2032,7 +2032,7 @@ function doCancel_(ss) {
  */
 function rebuildCuotas_(ss, config) {
   const usdClp = config ? config.usdClp : 0;
-  const installments = [];
+  let installments = [];
 
   // Parse NAC movements
   const nacSheet = ss.getSheetByName(TAB_NAC);
@@ -2079,14 +2079,25 @@ function rebuildCuotas_(ss, config) {
     }
   }
 
+  // The same plan reappears once per imported statement (CC 03-12, CC 04-12, …)
+  // — keep only the latest position of each plan
+  const byPlan = {};
+  for (const i of installments) {
+    const key = i.fuente + "|" + String(i.desc).replace(CUOTA_REGEX, "").trim()
+      + "|" + i.total + "|" + Math.round(i.monto);
+    if (!byPlan[key] || i.actual > byPlan[key].actual) byPlan[key] = i;
+  }
+  installments = Object.keys(byPlan).map(k => byPlan[k]);
+
   // Sort by restantes descending (most remaining first)
   installments.sort((a, b) => b.restantes - a.restantes);
 
-  // Compute summary stats (in CLP)
-  const activePlans = installments.length;
-  const monthlyPayment = installments.reduce((s, i) => s + i.montoCLP, 0);
-  const totalRemaining = installments.reduce((s, i) => s + (i.montoCLP * i.restantes), 0);
-  const finishingSoon = installments.filter(i => i.restantes <= 1).length;
+  // Compute summary stats (in CLP) — finished plans (restantes 0) excluded
+  const active = installments.filter(i => i.restantes > 0);
+  const activePlans = active.length;
+  const monthlyPayment = active.reduce((s, i) => s + i.montoCLP, 0);
+  const totalRemaining = active.reduce((s, i) => s + (i.montoCLP * i.restantes), 0);
+  const finishingSoon = active.filter(i => i.restantes === 1).length;
 
   // Write CUOTAS tab
   const sh = ensureSheet_(ss, TAB_CUOTAS);
@@ -2184,10 +2195,10 @@ function rebuildCuotas_(ss, config) {
   // Auto-fit column widths to content
   sh.autoResizeColumns(1, NUM_COLS);
 
-  // Per-source monthly breakdown
-  const nacMonthly = installments.filter(i => i.fuente === "NAC").reduce((s, i) => s + i.montoCLP, 0);
-  const intlMonthly = installments.filter(i => i.fuente === "INTL").reduce((s, i) => s + i.montoCLP, 0);
-  const intlMonthlyUSD = installments.filter(i => i.fuente === "INTL").reduce((s, i) => s + i.monto, 0);
+  // Per-source monthly breakdown (active plans only)
+  const nacMonthly = active.filter(i => i.fuente === "NAC").reduce((s, i) => s + i.montoCLP, 0);
+  const intlMonthly = active.filter(i => i.fuente === "INTL").reduce((s, i) => s + i.montoCLP, 0);
+  const intlMonthlyUSD = active.filter(i => i.fuente === "INTL").reduce((s, i) => s + i.monto, 0);
 
   return { activePlans, monthlyPayment, totalRemaining, finishingSoon, nacMonthly, intlMonthly, intlMonthlyUSD };
 }

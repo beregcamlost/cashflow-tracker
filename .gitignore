@@ -17,3 +17,9 @@ CLAUDE.md
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# tools (analysis) local artifacts
+tools/.venv/
+tools/out/
+tools/.env
+__pycache__/
