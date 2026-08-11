@@ -52,7 +52,10 @@
 > Import billed (Facturados) and unbilled (NoFacturados) credit card statements. Both merge into the same tab with a "Tipo" column for filtering. Dashboard payment estimates use billed amounts when available, falling back to unbilled. Automatic currency conversion for international cards.
 
 🏷️ **Auto-Categorization**
-> Keyword-based rules match movements to categories (Transporte, Entretenimiento, Alimentacion, etc.)
+> 130+ keyword rules match movements to categories (Transport, Groceries, Pets & Health, Subscriptions, etc.). Reseed anytime via ⚙️ Settings → Reset categorias.
+
+🗄️ **Archive formats ignored**
+> Files named `Cartola*`, `movimientos.*` or `EECC*` in the Drop folder are never imported — the snapshot model keeps one file per source, and those are historical/backup formats.
 
 📅 **Installment Tracking**
 > Detects `CC 03-12` / `CF 01-06` patterns and calculates remaining payments.
@@ -93,7 +96,8 @@ Google Drive (Drop folder)
   │  ├─ Apply theme              │──▶ Formats all 9 tabs
   │  └─ ⚙️ Settings               │
   │     ├─ Set Drop Folder       │
-  │     └─ Set Gemini API Key    │
+  │     ├─ Set Gemini API Key    │
+  │     └─ Reset categorias      │──▶ Seeds 130+ keyword rules
   └──────────────────────────────┘
           │
           ▼

@@ -19,7 +19,8 @@
 
 const PROP_DROP_FOLDER = "DROP_FOLDER_ID";
 const PROP_GEMINI_KEY = "GEMINI_API_KEY";
-const GEMINI_MODEL = "gemini-2.0-flash";
+// 2.0-flash was shut down 2026-06-01; 2.5-flash retires 2026-10-16 (next: gemini-3.5-flash)
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 /**
  * Returns the configured Drop Folder ID from Script Properties.
@@ -156,6 +157,141 @@ const THEME = {
  * §2  MENU
  ******************************************************************************/
 
+const DEFAULT_CATEGORIES = [
+  ["ALL", "monto cancelado", "CC Payment"],
+  ["ALL", "uber eats", "Delivery"],
+  ["ALL", "rappi", "Delivery"],
+  ["ALL", "pedidosya", "Delivery"],
+  ["ALL", "uber trip", "Transport"],
+  ["ALL", "uber", "Transport"],
+  ["ALL", "cabify", "Transport"],
+  ["ALL", "pasajebus", "Transport"],
+  ["ALL", "recorrido", "Transport"],
+  ["ALL", "mt aut", "Transport"],
+  ["ALL", "starwash", "Transport"],
+  ["ALL", "copec", "Fuel"],
+  ["ALL", "shell", "Fuel"],
+  ["ALL", "pronto", "Fuel"],
+  ["ALL", "vetbos", "Pets & Health"],
+  ["ALL", "petslife", "Pets & Health"],
+  ["ALL", "pethouse", "Pets & Health"],
+  ["ALL", "superzoo", "Pets & Health"],
+  ["ALL", "veterinar", "Pets & Health"],
+  ["ALL", "pets", "Pets & Health"],
+  ["ALL", "cruz verde", "Pharmacy"],
+  ["ALL", "salcobrand", "Pharmacy"],
+  ["ALL", "farmacia", "Pharmacy"],
+  ["ALL", "farm", "Pharmacy"],
+  ["ALL", "sanna", "Health"],
+  ["ALL", "clinica", "Health"],
+  ["ALL", "opticas", "Health"],
+  ["ALL", "servicios medicos", "Health"],
+  ["ALL", "dental", "Health"],
+  ["ALL", "jumbo", "Groceries"],
+  ["ALL", "hiper", "Groceries"],
+  ["ALL", "lider", "Groceries"],
+  ["ALL", "unimarc", "Groceries"],
+  ["ALL", "santa isabel", "Groceries"],
+  ["ALL", "tottus", "Groceries"],
+  ["ALL", "mora loutit", "Restaurants"],
+  ["ALL", "kami", "Restaurants"],
+  ["ALL", "sushi", "Restaurants"],
+  ["ALL", "deja vu", "Restaurants"],
+  ["ALL", "mostaza", "Restaurants"],
+  ["ALL", "upa!", "Restaurants"],
+  ["ALL", "botalon", "Restaurants"],
+  ["ALL", "balcao", "Restaurants"],
+  ["ALL", "locosx", "Restaurants"],
+  ["ALL", "streatb", "Restaurants"],
+  ["ALL", "tamarin", "Restaurants"],
+  ["ALL", "sbx", "Restaurants"],
+  ["ALL", "starbucks", "Restaurants"],
+  ["ALL", "kfc", "Restaurants"],
+  ["ALL", "restauran", "Restaurants"],
+  ["ALL", "burger", "Restaurants"],
+  ["ALL", "pizza", "Restaurants"],
+  ["ALL", "cafe", "Restaurants"],
+  ["ALL", "ikea", "Home"],
+  ["ALL", "sodimac", "Home"],
+  ["ALL", "anwo", "Home"],
+  ["ALL", "maihue", "Home"],
+  ["ALL", "cinemark", "Entertainment"],
+  ["ALL", "cine", "Entertainment"],
+  ["ALL", "que leo", "Entertainment"],
+  ["ALL", "granadapark", "Entertainment"],
+  ["ALL", "battle", "Gaming"],
+  ["ALL", "blizzard", "Gaming"],
+  ["ALL", "steam", "Gaming"],
+  ["INTL", "anthropic", "AI Tools"],
+  ["INTL", "claude", "AI Tools"],
+  ["INTL", "openai", "AI Tools"],
+  ["ALL", "netflix", "Subscriptions"],
+  ["ALL", "spotify", "Subscriptions"],
+  ["ALL", "emby", "Subscriptions"],
+  ["ALL", "flixtools", "Subscriptions"],
+  ["ALL", "hbo", "Subscriptions"],
+  ["ALL", "disney", "Subscriptions"],
+  ["INTL", "appbox", "Digital Services"],
+  ["INTL", "apple", "Digital Services"],
+  ["INTL", "playstation", "Digital Services"],
+  ["INTL", "google", "Digital Services"],
+  ["ALL", "entel", "Telecom"],
+  ["ALL", "movistar", "Telecom"],
+  ["ALL", "vtr", "Telecom"],
+  ["ALL", "wom", "Telecom"],
+  ["ALL", "levis", "Clothing"],
+  ["ALL", "adidas", "Clothing"],
+  ["ALL", "uarmour", "Clothing"],
+  ["ALL", "under armour", "Clothing"],
+  ["ALL", "nike", "Clothing"],
+  ["ALL", "outlet park", "Clothing"],
+  ["ALL", "falabella", "Clothing"],
+  ["ALL", "ripley", "Clothing"],
+  ["ALL", "rokos", "Beauty"],
+  ["ALL", "barber", "Beauty"],
+  ["ALL", "almondbeauty", "Beauty"],
+  ["ALL", "mlskiny", "Beauty"],
+  ["ALL", "anne alis", "Beauty"],
+  ["ALL", "peluquer", "Beauty"],
+  ["ALL", "seguro", "Insurance"],
+  ["ALL", "cashback", "Cashback"],
+  ["ALL", "impuesto", "Bank Fees"],
+  ["ALL", "comision", "Bank Fees"],
+  ["ALL", "interes", "Bank Fees"],
+  ["ALL", "int. ", "Bank Fees"],
+  ["ALL", "sobregiro", "Bank Fees"],
+  ["ALL", "amortizacion", "Bank Fees"],
+  ["ALL", "mantencion", "Bank Fees"],
+  ["ALL", "mora", "Bank Fees"],
+  ["BANCO", "pago deuda tarjeta", "CC Payment"],
+  ["BANCO", "tef a ", "Transfers Out"],
+  ["BANCO", "estado a", "Transfers Out"],
+  ["BANCO", "transfer a", "Transfers Out"],
+  ["BANCO", "traspaso", "Transfers Out"],
+  ["BANCO", "tef de", "Transfers In"],
+  ["BANCO", "estado de", "Transfers In"],
+  ["BANCO", "transfer de", "Transfers In"],
+  ["BANCO", "abono", "Income"],
+  ["BANCO", "deposito", "Income"],
+  ["BANCO", "pago", "Payments"],
+  ["BANCO", "compra", "Shopping"],
+  ["ALL", "integramedica", "Health"],
+  ["ALL", "ferreteria", "Home"],
+  ["ALL", "carnes", "Groceries"],
+  ["ALL", "quillotana", "Groceries"],
+  ["ALL", "wine", "Restaurants"],
+  ["ALL", "la foresta", "Restaurants"],
+  ["ALL", "saba ", "Transport"],
+  ["ALL", "mercado libre", "Shopping"],
+  ["ALL", "aliexpress", "Shopping"],
+  ["ALL", "amazon", "Shopping"],
+  ["ALL", "mercadopago", "Shopping"],
+  ["ALL", "merpago", "Shopping"],
+  ["ALL", "mp *", "Shopping"],
+  ["ALL", "dp *", "Shopping"],
+  ["ALL", "mercado", "Shopping"],
+];
+
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("💰 Management")
@@ -168,7 +304,8 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(ui.createMenu("⚙️ Settings")
       .addItem("Set Drop Folder",    "setDropFolder")
-      .addItem("Set Gemini API Key", "setGeminiApiKey"))
+      .addItem("Set Gemini API Key", "setGeminiApiKey")
+      .addItem("Reset categorias (seed)", "resetCategorias"))
     .addToUi();
 }
 
@@ -210,6 +347,36 @@ function setDropFolder() {
     getDropFolderId_();
     toast_(ss, "Drop folder ID saved!", 3);
   });
+}
+
+function resetCategorias() {
+  safeRun_("Reset Categorias", doResetCategorias_);
+}
+
+/**
+ * Replace all CATEGORIAS rules with DEFAULT_CATEGORIES (confirmation required).
+ * New rules apply to RESUMEN on next Refresh and to MOV_* tabs on next import.
+ */
+function doResetCategorias_(ss) {
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.alert(
+    "Reset Categorias",
+    "This will REPLACE all rules in " + TAB_CATEGORIAS + " with the "
+      + DEFAULT_CATEGORIES.length + " default rules.\n\nContinue?",
+    ui.ButtonSet.YES_NO
+  );
+  if (resp !== ui.Button.YES) {
+    toast_(ss, "Reset cancelled.");
+    return;
+  }
+  const sh = ensureSheet_(ss, TAB_CATEGORIAS);
+  sh.clear();
+  const rows = [["Tipo", "Keyword", "Categoria"], ...DEFAULT_CATEGORIES];
+  sh.getRange(1, 1, rows.length, 3).setValues(rows);
+  styleHeaderRow_(sh, 3, false);
+  sh.autoResizeColumns(1, 3);
+  toast_(ss, "CATEGORIAS reset: " + DEFAULT_CATEGORIES.length
+    + " rules. Re-import or Refresh to apply.", 6);
 }
 
 /******************************************************************************
@@ -1203,52 +1370,40 @@ function doPreview_(ss) {
   let latestNacFact, latestIntlFact;
   let nacFactData = null, intlFactData = null;
 
-  if (apiKey) {
-    // Gemini AI path — supports any bank file format
-    toast_(ss, "Scanning files with Gemini AI…");
+  // Legacy parsers first — deterministic and free for the known BCI/Banco Estado
+  // exports. Gemini (if configured) only fills slots legacy couldn't, from
+  // unknown-format files; a Gemini failure never blocks the import.
+  toast_(ss, "Scanning Drive folder…");
+  const legacy = findLatestFiles_(folder);
+  latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+  latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
+
+  let geminiData = null;
+  if (apiKey && (!latestNac || !latestIntl || !latestBanco || !latestNacFact || !latestIntlFact)) {
+    toast_(ss, "Scanning unknown formats with Gemini AI…");
     try {
-      const gemini = findAndExtractAllFilesGemini_(folder, apiKey);
-      latestNac   = gemini.nac;
-      latestIntl  = gemini.intl;
-      latestBanco = gemini.banco;
-      nacData  = latestNac  ? latestNac.extractedData  : null;
-      intlData = latestIntl ? latestIntl.extractedData : null;
-      bancoResult = latestBanco
-        ? { data: latestBanco.extractedData, saldoDisponible: latestBanco.saldoDisponible }
-        : null;
-      latestNacFact  = gemini.nacFact;
-      latestIntlFact = gemini.intlFact;
-      nacFactData  = latestNacFact  ? latestNacFact.extractedData  : null;
-      intlFactData = latestIntlFact ? latestIntlFact.extractedData : null;
+      geminiData = findAndExtractAllFilesGemini_(folder, apiKey, true);
+      if (!latestNac && geminiData.nac)           latestNac = geminiData.nac;           else geminiData.nac = null;
+      if (!latestIntl && geminiData.intl)         latestIntl = geminiData.intl;         else geminiData.intl = null;
+      if (!latestBanco && geminiData.banco)       latestBanco = geminiData.banco;       else geminiData.banco = null;
+      if (!latestNacFact && geminiData.nacFact)   latestNacFact = geminiData.nacFact;   else geminiData.nacFact = null;
+      if (!latestIntlFact && geminiData.intlFact) latestIntlFact = geminiData.intlFact; else geminiData.intlFact = null;
     } catch (geminiErr) {
-      Logger.log("Gemini failed, falling back to legacy: " + geminiErr.message);
-      toast_(ss, "Gemini failed, using legacy parsers…");
-      const legacy = findLatestFiles_(folder);
-      latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
-      nacData  = latestNac  ? extractMovementsFromXls_(latestNac.file, "CLP") : null;
-      intlData = latestIntl ? extractMovementsFromXls_(latestIntl.file, "USD") : null;
-      bancoResult = latestBanco ? extractMovementsFromBancoXls_(latestBanco.file) : null;
-      latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
-      nacFactData  = latestNacFact  ? extractMovementsFromXls_(latestNacFact.file, "CLP") : null;
-      intlFactData = latestIntlFact ? extractMovementsFromXls_(latestIntlFact.file, "USD") : null;
+      Logger.log("Gemini scan failed (ignored): " + geminiErr.message);
+      geminiData = null;
     }
-  } else {
-    // Legacy path — hardcoded BCI/Banco Estado parsers
-    toast_(ss, "Scanning Drive folder…");
-    const legacy = findLatestFiles_(folder);
-    latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
-    toast_(ss, "Converting NAC file…");
-    nacData  = latestNac  ? extractMovementsFromXls_(latestNac.file, "CLP") : null;
-    toast_(ss, "Converting INTL file…");
-    intlData = latestIntl ? extractMovementsFromXls_(latestIntl.file, "USD") : null;
-    if (latestBanco) {
-      toast_(ss, "Converting Banco file…");
-      bancoResult = extractMovementsFromBancoXls_(latestBanco.file);
-    }
-    latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
-    nacFactData  = latestNacFact  ? extractMovementsFromXls_(latestNacFact.file, "CLP") : null;
-    intlFactData = latestIntlFact ? extractMovementsFromXls_(latestIntlFact.file, "USD") : null;
   }
+
+  toast_(ss, "Converting files…");
+  nacData  = latestNac  ? (geminiData && geminiData.nac  ? geminiData.nac.extractedData  : extractMovementsFromXls_(latestNac.file, "CLP")) : null;
+  intlData = latestIntl ? (geminiData && geminiData.intl ? geminiData.intl.extractedData : extractMovementsFromXls_(latestIntl.file, "USD")) : null;
+  bancoResult = latestBanco
+    ? (geminiData && geminiData.banco
+        ? { data: geminiData.banco.extractedData, saldoDisponible: geminiData.banco.saldoDisponible }
+        : extractMovementsFromBancoXls_(latestBanco.file))
+    : null;
+  nacFactData  = latestNacFact  ? (geminiData && geminiData.nacFact  ? geminiData.nacFact.extractedData  : extractMovementsFromXls_(latestNacFact.file, "CLP")) : null;
+  intlFactData = latestIntlFact ? (geminiData && geminiData.intlFact ? geminiData.intlFact.extractedData : extractMovementsFromXls_(latestIntlFact.file, "USD")) : null;
 
   nacData  = mergeWithTipo_(nacData, nacFactData);
   intlData = mergeWithTipo_(intlData, intlFactData);
@@ -1639,23 +1794,22 @@ function doConfirm_(ss) {
   let latestNacFact, latestIntlFact;
   let geminiData = null;
 
-  if (apiKey) {
+  const legacy = findLatestFiles_(folder);
+  latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
+  latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
+
+  if (apiKey && (!latestNac || !latestIntl || !latestBanco || !latestNacFact || !latestIntlFact)) {
     try {
-      geminiData = findAndExtractAllFilesGemini_(folder, apiKey);
-      latestNac = geminiData.nac; latestIntl = geminiData.intl; latestBanco = geminiData.banco;
-      latestNacFact = geminiData.nacFact; latestIntlFact = geminiData.intlFact;
+      geminiData = findAndExtractAllFilesGemini_(folder, apiKey, true);
+      if (!latestNac && geminiData.nac)           latestNac = geminiData.nac;           else geminiData.nac = null;
+      if (!latestIntl && geminiData.intl)         latestIntl = geminiData.intl;         else geminiData.intl = null;
+      if (!latestBanco && geminiData.banco)       latestBanco = geminiData.banco;       else geminiData.banco = null;
+      if (!latestNacFact && geminiData.nacFact)   latestNacFact = geminiData.nacFact;   else geminiData.nacFact = null;
+      if (!latestIntlFact && geminiData.intlFact) latestIntlFact = geminiData.intlFact; else geminiData.intlFact = null;
     } catch (geminiErr) {
-      Logger.log("Gemini failed in confirm, falling back: " + geminiErr.message);
-      toast_(ss, "Gemini failed, using legacy parsers…");
+      Logger.log("Gemini scan failed (ignored): " + geminiErr.message);
       geminiData = null;
-      const legacy = findLatestFiles_(folder);
-      latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
-      latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
     }
-  } else {
-    const legacy = findLatestFiles_(folder);
-    latestNac = legacy.nac; latestIntl = legacy.intl; latestBanco = legacy.banco;
-    latestNacFact = legacy.nacFact; latestIntlFact = legacy.intlFact;
   }
 
   const latestNacFP   = latestNac   ? fileFingerprint_(latestNac.file)   : "";
@@ -2367,14 +2521,8 @@ function extractMovementsFromXls_(xlsFile, currency) {
       if (!fecha && !desc && (monto === "" || monto === null)) break;
       if (!desc) continue;
 
-      let numMonto;
-      if (typeof monto === "number") {
-        numMonto = monto;
-      } else {
-        const cleaned = String(monto != null ? monto : "").replace(/[^\d.-]/g, "");
-        numMonto = parseFloat(cleaned);
-      }
-      if (!isFinite(numMonto)) continue;
+      const numMonto = parseChileanAmount_(monto);
+      if (numMonto === 0 && !/\d/.test(String(monto != null ? monto : ""))) continue;
 
       out.push([fecha, String(desc), numMonto]);
     }
@@ -2481,7 +2629,10 @@ function findBancoHeader_(values) {
   for (let r = 0; r < Math.min(values.length, 30); r++) {
     const row = values[r].map(v => String(v || "").toLowerCase().trim());
     const colFecha = row.findIndex(c => c === "fecha");
-    const colDesc  = row.findIndex(c => c.includes("descripci") || c.includes("operaci"));
+    // "Descripción" must win over "N° Operación" — findIndex scans left-to-right
+    // and the operation-number column comes first in Banco Estado exports
+    let colDesc = row.findIndex(c => c.includes("descripci"));
+    if (colDesc === -1) colDesc = row.findIndex(c => c.includes("operaci"));
     const colCargo = row.findIndex(c => c.includes("cargo") || c.includes("cheque"));
     const colAbono = row.findIndex(c => c.includes("abono") || c.includes("dep\u00f3sito") || c.includes("deposito"));
     if (colFecha !== -1 && colDesc !== -1 && colCargo !== -1 && colAbono !== -1) {
@@ -2497,10 +2648,29 @@ function findBancoHeader_(values) {
  * @returns {number}
  */
 function parseBancoAmount_(val) {
+  return parseChileanAmount_(val);
+}
+
+/**
+ * Parse an amount that may use Chilean formatting when it arrives as a string:
+ * "3.121.420" (dot thousands), "13.897,00" (comma decimal), "-78.381", "$ 45.000".
+ * Plain "432.28" (one dot, 1-2 decimals) is treated as a decimal point.
+ * @param {*} val
+ * @returns {number}
+ */
+function parseChileanAmount_(val) {
   if (typeof val === "number") return isFinite(val) ? val : 0;
-  const cleaned = String(val != null ? val : "").replace(/[^\d.-]/g, "");
-  const num = parseFloat(cleaned);
-  return isFinite(num) ? num : 0;
+  let s = String(val != null ? val : "").replace(/[$\s]/g, "");
+  if (!s) return 0;
+  const neg = /^-/.test(s);
+  s = s.replace(/^-/, "");
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s) || /,\d{1,2}$/.test(s)) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else {
+    s = s.replace(/[^\d.]/g, "");
+  }
+  const num = parseFloat(s);
+  return isFinite(num) ? (neg ? -num : num) : 0;
 }
 
 /**
@@ -2621,15 +2791,7 @@ function ensureAllTabs_(ss) {
   // CATEGORIAS — create with header + sample keywords
   if (!ss.getSheetByName(TAB_CATEGORIAS)) {
     const sh = ss.insertSheet(TAB_CATEGORIAS);
-    const rows = [
-      ["Tipo", "Keyword", "Categoria"],
-      ["ALL",  "UBER",     "Transporte"],
-      ["ALL",  "NETFLIX",  "Entretenimiento"],
-      ["ALL",  "SPOTIFY",  "Entretenimiento"],
-      ["NAC",  "SUPERMERCADO", "Alimentacion"],
-      ["NAC",  "FARMACIA", "Salud"],
-      ["INTL", "OPENAI",   "Tech"],
-    ];
+    const rows = [["Tipo", "Keyword", "Categoria"], ...DEFAULT_CATEGORIES];
     sh.getRange(1, 1, rows.length, 3).setValues(rows);
     styleHeaderRow_(sh, 3, false);
     sh.autoResizeColumns(1, 3);
@@ -2796,7 +2958,7 @@ RULES:
   return callGemini_(prompt, apiKey);
 }
 
-function findAndExtractAllFilesGemini_(folder, apiKey) {
+function findAndExtractAllFilesGemini_(folder, apiKey, skipKnownFormats) {
   const files = folder.getFiles();
   const results = { nac: null, intl: null, banco: null, nacFact: null, intlFact: null };
   const dates = { nac: 0, intl: 0, banco: 0, nacFact: 0, intlFact: 0 };
@@ -2806,6 +2968,15 @@ function findAndExtractAllFilesGemini_(folder, apiKey) {
     const file = files.next();
     const name = file.getName().toLowerCase();
     if (name.startsWith(".") || name.startsWith("~$")) continue;
+    // Archive/backup formats the snapshot model can't hold (historical cartolas,
+    // BCI checking exports, Líder EECC) — they'd hijack the single "banco" slot
+    if (/^(cartola|movimientos\.|eecc)/i.test(name)) continue;
+    // Known-format files are already handled by the legacy parsers
+    if (skipKnownFormats) {
+      const n = file.getName();
+      if (NAC_REGEX.test(n) || INTL_REGEX.test(n) || BANCO_REGEX.test(n)
+          || NAC_FACT_REGEX.test(n) || INTL_FACT_REGEX.test(n)) continue;
+    }
 
     const mime = file.getMimeType();
     if (mime.indexOf("spreadsheet") < 0 && mime.indexOf("excel") < 0
