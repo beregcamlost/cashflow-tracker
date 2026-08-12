@@ -8,7 +8,7 @@ posibles duplicados por múltiples statements del mismo plan).
 """
 import re
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import openpyxl
 import pandas as pd
@@ -80,6 +80,50 @@ def report_movements(df, label, amount_col, negative=False):
     for cat, total in top.items():
         print(f"  {cat:<20} {fmt(total):>12}")
     return spend
+
+
+def report_deuda_tc(wb):
+    """Espejo de computeCycleDebt_ del tracker: statement del último cierre,
+    pagos posteriores y por facturar — para auditar la cifra del dashboard."""
+    usd = 950.0
+    cfg_ws = find_sheet(wb, "CONFIG")
+    if cfg_ws is not None:
+        usd = config_value(sheet_df(cfg_ws), "USD_CLP") or usd
+    print("\n== DEUDA TC HOY (est.) ==")
+    total = 0
+    for name, factor in [("MOV_CC_NACIONAL", 1.0), ("MOV_CC_INTL", usd)]:
+        ws = find_sheet(wb, name)
+        if ws is None:
+            continue
+        rows = [r for r in ws.iter_rows(min_row=2, values_only=True)
+                if r[0] is not None]
+        facts = [r[0] for r in rows if str(r[3]).strip() == "Facturado"
+                 and isinstance(r[2], (int, float)) and r[2] > 0]
+        cierre = max(facts) if facts else None
+        st = pp = pf = 0
+        for f, _, m, t, *_ in rows:
+            if not isinstance(m, (int, float)):
+                continue
+            t = str(t).strip()
+            if cierre is None:
+                if t == "No Facturado" and m > 0:
+                    pf += m
+                continue
+            if (t == "Facturado" and m > 0 and f <= cierre
+                    and (cierre - f) <= timedelta(days=31)):
+                st += m
+            elif m < 0 and f > cierre:
+                pp += -m
+            elif t == "No Facturado" and m > 0 and f > cierre:
+                pf += m
+        st, pp, pf = st * factor, pp * factor, pf * factor
+        deuda = max(0, st - pp) + pf
+        total += deuda
+        print(f"  {name}: cierre {cierre.date() if cierre else '—'}  "
+              f"statement {fmt(st)}  pagos post {fmt(pp)}  "
+              f"por facturar {fmt(pf)}  → deuda {fmt(deuda)}")
+    print(f"  TOTAL deuda TC hoy: {fmt(total)}")
+    return total
 
 
 MESES = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5,
@@ -253,6 +297,7 @@ def main():
                 spends.append(s.rename(columns={col: "monto"}))
 
     verify_cuotas(wb, today)
+    deuda_tc = report_deuda_tc(wb)
 
     casa = {}
     if casa_path:
@@ -289,6 +334,38 @@ def main():
         if casa_total:
             print("  Nota: ítems de casa pagados con tu TC se solapan con el gasto TC "
                   "— el margen real puede ser algo mayor.")
+
+    dash_ws = find_sheet(wb, "DASHBOARD")
+    if dash_ws is not None and cfg_ws is not None:
+        saldo = dash_ws.cell(18, 2).value
+        cfg = sheet_df(cfg_ws)
+        payday = config_value(cfg, "PAYDAY")
+        sueldo_pd = config_value(cfg, "SUELDO_PAYDAY")
+        housing = config_value(cfg, "HOUSING") or 0
+        familia = config_value(cfg, "FAMILIA") or 0
+        if not sueldo_pd:
+            print("\n== LIBRE HOY: agrega PAYDAY y SUELDO_PAYDAY al CONFIG "
+                  "del sheet para activar esta sección ==")
+        if isinstance(saldo, (int, float)) and sueldo_pd:
+            banco_ws = find_sheet(wb, "MOV_BANCO")
+            abono = False
+            if banco_ws is not None:
+                for r in banco_ws.iter_rows(min_row=2, values_only=True):
+                    if (isinstance(r[2], (int, float)) and r[2] >= 0.8 * sueldo_pd
+                            and isinstance(r[0], datetime)
+                            and (r[0].year, r[0].month) == (today.year, today.month)):
+                        abono = True
+                        break
+            pendiente = 0 if abono else sueldo_pd
+            libre_hoy = saldo + pendiente - deuda_tc - housing - familia
+            print(f"\n== LIBRE HOY (est.) ==")
+            print(f"  Saldo banco        {fmt(saldo):>12}")
+            print(f"  Sueldo por entrar  {fmt(pendiente):>12}"
+                  + (f"  (día {payday:.0f})" if pendiente and payday else ""))
+            print(f"  Deuda TC hoy      -{fmt(deuda_tc):>12}")
+            print(f"  Casa (total mes)  -{fmt(housing):>12}  (asume no pagada aún)")
+            print(f"  Familia           -{fmt(familia):>12}")
+            print(f"  LIBRE HOY          {fmt(libre_hoy):>12}")
 
 
 if __name__ == "__main__":

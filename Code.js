@@ -423,7 +423,8 @@ function toast_(ss, msg) {
  * Scans column A for parameter names, column B for values.
  */
 function readConfig_(ss) {
-  const defaults = { salario: 0, housing: 0, familia: 0, usdClp: 0, claudePlan: 0 };
+  const defaults = { salario: 0, housing: 0, familia: 0, usdClp: 0, claudePlan: 0,
+                     payday: 0, sueldoPayday: 0 };
   const sh = ss.getSheetByName(TAB_CONFIG);
   if (!sh || sh.getLastRow() < 1) return defaults;
 
@@ -440,6 +441,8 @@ function readConfig_(ss) {
     tipo_cambio: "usdClp",
     claude_plan: "claudePlan",
     claudeplan:  "claudePlan",
+    payday:        "payday",
+    sueldo_payday: "sueldoPayday",
   };
 
   for (const [label, val] of data) {
@@ -805,8 +808,8 @@ function formatDashboardChrome_(dash) {
       .setFontFamily(FONT_FAMILY)
       .setHorizontalAlignment("center");
 
-  const finLabelsLeft  = ["Income (Salario)", "CC Nacional", "Total Expenses", "FSI (margin/income)"];
-  const finLabelsRight = ["Housing", "CC Intl (CLP)", "Available Margin", "Stability"];
+  const finLabelsLeft  = ["Income (Salario)", "Gasto TC (mes)", "Total gastos (mes)", "FSI (margin/income)"];
+  const finLabelsRight = ["Housing", "Deuda TC hoy (est.)", "Libre este mes", "Stability"];
   for (let i = 0; i < finLabelsLeft.length; i++) {
     dash.getRange(10 + i, 1).setValue(finLabelsLeft[i])
         .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
@@ -831,9 +834,9 @@ function formatDashboardChrome_(dash) {
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
   dash.getRange(16, 5).setValue("Buffer after savings")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
-  dash.getRange(17, 1).setValue("Burn threshold (CLP)")
+  dash.getRange(17, 1).setValue("Libre HOY (est.)")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
-  dash.getRange(17, 5).setValue("Cross day")
+  dash.getRange(17, 5).setValue("Sueldo por entrar")
       .setFontColor(THEME.MUTED_TEXT).setFontWeight("bold").setFontSize(10).setFontFamily(FONT_FAMILY);
 
   // Row 18: Banco summary
@@ -1057,17 +1060,24 @@ function writeSummaryColumn_(dash, startCol, stats, currency) {
  * Update the FINANCIAL OVERVIEW section (rows 10-13),
  * SAVINGS & INDICATORS section (rows 16-17), and
  * BANCO summary (row 18).
+ * Monthly-flow view: current-month card spend against one month of income,
+ * plus the estimated card debt outstanding today.
  * @param {Sheet} dash
+ * @param {Spreadsheet} ss
  * @param {Object} config        From readConfig_
- * @param {number} nacTotal      Sum of positive amounts in MOV_CC_NACIONAL (CLP)
- * @param {number} intlTotalCLP  Sum of positive INTL amounts × USD_CLP
  * @param {number} [bancoDebits] Absolute value of negative banco movements
  * @param {number} [bancoBalance] Saldo disponible from banco file
  */
-function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDebits, bancoBalance) {
+function updateFinancialOverview_(dash, ss, config, bancoDebits, bancoBalance) {
+  const nacSheet = ss.getSheetByName(TAB_NAC);
+  const intlSheet = ss.getSheetByName(TAB_INTL);
+  const gastoMesTC = sumMonthPositive_(nacSheet, 1)
+    + sumMonthPositive_(intlSheet, config.usdClp);
+  const deudaTC = computeCycleDebt_(nacSheet, 1).deuda
+    + computeCycleDebt_(intlSheet, config.usdClp).deuda;
   const costosFijos = config.housing + config.familia;
-  const totalGastar = costosFijos + nacTotal + intlTotalCLP + config.claudePlan;
-  const margen = config.salario - totalGastar;
+  const totalMes = costosFijos + gastoMesTC + config.claudePlan;
+  const margen = config.salario - totalMes;
   const fsi = config.salario > 0 ? margen / config.salario : 0;
 
   // Stability classification
@@ -1088,10 +1098,30 @@ function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDeb
 
   const bufferAfterSavings = Math.max(0, margen - savings);
 
-  // Burn calculations
-  const burnThreshold = 750000;
-  const dailyBurn = margen > 0 ? margen / 30 : 0;
-  const crossDay = dailyBurn > 0 ? Math.floor(burnThreshold / dailyBurn) : 0;
+  // "Libre HOY": cash in the bank + salary still to land this month, minus
+  // what is still ahead (next card payment, house total, family support).
+  // Assumes house/familia are unpaid until month end — CONFIG needs
+  // PAYDAY (day of month) and SUELDO_PAYDAY (amount landing that day).
+  let sueldoPendiente = 0;
+  if (config.sueldoPayday > 0) {
+    const bancoSheet = ss.getSheetByName(TAB_BANCO);
+    let abonoDetectado = false;
+    if (bancoSheet && bancoSheet.getLastRow() > 1) {
+      const now = new Date();
+      const bvals = bancoSheet.getRange(2, 1, bancoSheet.getLastRow() - 1, 3).getValues();
+      for (const [bFecha, , bMonto] of bvals) {
+        if (bFecha instanceof Date && typeof bMonto === "number"
+            && bMonto >= 0.8 * config.sueldoPayday
+            && bFecha.getFullYear() === now.getFullYear()
+            && bFecha.getMonth() === now.getMonth()) {
+          abonoDetectado = true;
+          break;
+        }
+      }
+    }
+    if (!abonoDetectado) sueldoPendiente = config.sueldoPayday;
+  }
+  const libreHoy = (bancoBalance || 0) + sueldoPendiente - deudaTC - costosFijos;
 
   // ── FINANCIAL OVERVIEW values (rows 10-13) ────────────────────────────
 
@@ -1101,11 +1131,11 @@ function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDeb
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   dash.getRange(11, 2, 1, 3).merge()
-      .setValue(nacTotal).setNumberFormat(FMT_CLP)
+      .setValue(gastoMesTC).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   dash.getRange(12, 2, 1, 3).merge()
-      .setValue(totalGastar).setNumberFormat(FMT_CLP)
+      .setValue(totalMes).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   const fsiCell = dash.getRange(13, 2, 1, 3);
@@ -1119,18 +1149,13 @@ function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDeb
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
   dash.getRange(11, 6, 1, 3).merge()
-      .setValue(intlTotalCLP).setNumberFormat(FMT_CLP)
+      .setValue(deudaTC).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
-  // Available Margin = min(margen, bancoBalance) if bancoBalance known
-  const displayMargen = (bancoBalance && bancoBalance > 0)
-    ? Math.min(margen, bancoBalance)
-    : margen;
-
   const margenCell = dash.getRange(12, 6, 1, 3);
-  margenCell.merge().setValue(displayMargen).setNumberFormat(FMT_CLP)
+  margenCell.merge().setValue(margen).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontWeight("bold").setFontFamily(FONT_FAMILY);
-  if (displayMargen >= 0) {
+  if (margen >= 0) {
     margenCell.setFontColor(THEME.POSITIVE_TEXT).setBackground(THEME.POSITIVE_BG);
   } else {
     margenCell.setFontColor(THEME.NEGATIVE_TEXT).setBackground(THEME.NEGATIVE_BG);
@@ -1151,12 +1176,21 @@ function updateFinancialOverview_(dash, config, nacTotal, intlTotalCLP, bancoDeb
       .setValue(bufferAfterSavings).setNumberFormat(FMT_CLP)
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
 
-  dash.getRange(17, 2, 1, 3).merge()
-      .setValue(burnThreshold).setNumberFormat(FMT_CLP)
-      .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.BLACK);
+  const libreHoyCell = dash.getRange(17, 2, 1, 3);
+  libreHoyCell.merge().setValue(config.sueldoPayday > 0 ? libreHoy : "config PAYDAY/SUELDO_PAYDAY")
+      .setNumberFormat(FMT_CLP)
+      .setFontSize(10).setFontWeight("bold").setFontFamily(FONT_FAMILY);
+  if (config.sueldoPayday > 0) {
+    libreHoyCell.setFontColor(libreHoy >= 0 ? THEME.POSITIVE_TEXT : THEME.NEGATIVE_TEXT)
+        .setBackground(libreHoy >= 0 ? THEME.POSITIVE_BG : THEME.NEGATIVE_BG);
+  } else {
+    libreHoyCell.setFontColor(THEME.MUTED_TEXT);
+  }
 
   dash.getRange(17, 6, 1, 3).merge()
-      .setValue(crossDay > 0 ? "Day " + crossDay : "—")
+      .setValue(sueldoPendiente > 0
+        ? (config.payday > 0 ? "Day " + config.payday : "pendiente")
+        : "ya entró / —")
       .setFontSize(10).setFontFamily(FONT_FAMILY).setFontColor(THEME.MUTED_TEXT);
 
   // ── BANCO summary (row 18) ───────────────────────────────────────────
@@ -1976,7 +2010,7 @@ function doConfirm_(ss) {
     const nacPositiveSum = liveNac ? sumPositiveBilled_(liveNac) : 0;
     const intlPositiveSum = liveIntl ? sumPositiveBilled_(liveIntl) : 0;
     const intlTotalCLP = intlPositiveSum * config.usdClp;
-    updateFinancialOverview_(dash, config, nacPositiveSum, intlTotalCLP, bancoDebits, bancoBalance);
+    updateFinancialOverview_(dash, ss, config, bancoDebits, bancoBalance);
     updateInstallmentsSummary_(dash, cuotasStats);
     updateCCPaymentEstimate_(dash, nacPositiveSum, intlPositiveSum, intlTotalCLP, cuotasStats);
 
@@ -2384,7 +2418,7 @@ function doRefreshCalculations_(ss) {
     const nacPositiveSum = liveNac ? sumPositiveBilled_(liveNac) : 0;
     const intlPositiveSum = liveIntl ? sumPositiveBilled_(liveIntl) : 0;
     const intlTotalCLP = intlPositiveSum * config.usdClp;
-    updateFinancialOverview_(dash, config, nacPositiveSum, intlTotalCLP, bancoDebits, bancoBalance);
+    updateFinancialOverview_(dash, ss, config, bancoDebits, bancoBalance);
 
     // Installments summary + CC payment estimates
     updateInstallmentsSummary_(dash, cuotasStats);
@@ -2789,6 +2823,8 @@ function ensureAllTabs_(ss) {
       ["FAMILIA",     0],
       ["USD_CLP",   950],
       ["CLAUDE_PLAN", 0],
+      ["PAYDAY",      0],
+      ["SUELDO_PAYDAY", 0],
     ];
     sh.getRange(1, 1, defaults.length, 2).setValues(defaults);
     sh.getRange(1, 1, defaults.length, 1)
@@ -2868,6 +2904,64 @@ function sumPositiveByTipo_(sheet, montoCol, tipoCol, tipo) {
     if (isFinite(n) && n > 0) s += n;
   }
   return s;
+}
+
+/**
+ * Estimate the card debt outstanding today from an accumulated MOV tab:
+ * latest billed statement (rows within 31 days of the newest Facturado row)
+ * minus payments made after that close, plus everything unbilled since.
+ * @param {Sheet} sheet   MOV tab (Fecha, Descripcion, Monto, Tipo, ...)
+ * @param {number} factor CLP conversion (1 for CLP, usdClp for USD)
+ * @returns {{statement:number, pagosPost:number, porFacturar:number, deuda:number}}
+ */
+function computeCycleDebt_(sheet, factor) {
+  const out = { statement: 0, pagosPost: 0, porFacturar: 0, deuda: 0 };
+  if (!sheet || sheet.getLastRow() < 2) return out;
+  const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues();
+  let cierre = null;
+  for (const [fecha, , monto, tipo] of vals) {
+    if (String(tipo).trim() === "Facturado" && fecha instanceof Date
+        && typeof monto === "number" && monto > 0
+        && (!cierre || fecha > cierre)) cierre = fecha;
+  }
+  const WINDOW_MS = 31 * 24 * 60 * 60 * 1000;
+  for (const [fecha, , monto, tipo] of vals) {
+    if (!(fecha instanceof Date) || typeof monto !== "number") continue;
+    const t = String(tipo).trim();
+    if (cierre === null) {
+      if (t === "No Facturado" && monto > 0) out.porFacturar += monto;
+      continue;
+    }
+    if (t === "Facturado" && monto > 0 && fecha <= cierre
+        && cierre.getTime() - fecha.getTime() <= WINDOW_MS) {
+      out.statement += monto;
+    } else if (monto < 0 && fecha > cierre) {
+      out.pagosPost += -monto;
+    } else if (t === "No Facturado" && monto > 0 && fecha > cierre) {
+      out.porFacturar += monto;
+    }
+  }
+  out.statement *= factor;
+  out.pagosPost *= factor;
+  out.porFacturar *= factor;
+  out.deuda = Math.max(0, out.statement - out.pagosPost) + out.porFacturar;
+  return out;
+}
+
+/** Sum positive amounts dated in the current calendar month (any Tipo). */
+function sumMonthPositive_(sheet, factor) {
+  if (!sheet || sheet.getLastRow() < 2) return 0;
+  const now = new Date();
+  const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+  let s = 0;
+  for (const [fecha, , monto] of vals) {
+    if (fecha instanceof Date && typeof monto === "number" && monto > 0
+        && fecha.getFullYear() === now.getFullYear()
+        && fecha.getMonth() === now.getMonth()) {
+      s += monto;
+    }
+  }
+  return s * factor;
 }
 
 function sumPositiveBilled_(sheet) {
